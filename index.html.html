@@ -1,0 +1,2412 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCGT BAGL — Sistema Colaborativo de Gerenciamento do Turnaround</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+    /* Grade tática sutil em CSS puro */
+    .tactical-grid {
+      background-color: #070d17;
+      background-image:
+        linear-gradient(to right, rgba(56, 189, 248, 0.045) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(56, 189, 248, 0.045) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    /* Anéis concêntricos de radar na tela de login */
+    .radar-rings {
+      background-image:
+        radial-gradient(circle at 50% 45%, rgba(56, 189, 248, 0.11) 0%, rgba(37, 99, 235, 0.04) 36%, transparent 72%),
+        repeating-radial-gradient(circle at 50% 45%, transparent 0, transparent 78px, rgba(56, 189, 248, 0.065) 79px, transparent 80px);
+    }
+
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #070d17;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e2d45;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334a6e;
+    }
+
+    @media print {
+      body * { visibility: hidden; }
+      #print-fallback-area, #print-fallback-area * { visibility: visible; }
+      #print-fallback-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white;
+        color: #0b1f3a;
+        padding: 16px;
+      }
+    }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="tactical-grid text-[#f1f5f9] font-sans antialiased min-h-screen flex flex-col selection:bg-sky-500/30 selection:text-sky-200">
+
+  <!-- ===================================================================== -->
+  <!-- 1. TELA DE BLOQUEIO / CONTROLE DE ACESSO OPERACIONAL                  -->
+  <!-- ===================================================================== -->
+  <div id="login-screen" class="fixed inset-0 z-50 bg-[#050911]/95 radar-rings backdrop-blur-md overflow-y-auto flex items-center justify-center p-4">
+    <div class="bg-[#0d1626] rounded-2xl max-w-2xl w-full shadow-[0_0_60px_rgba(2,6,23,0.95)] border border-[#1e2d45] overflow-hidden my-auto relative">
+      <div class="h-1.5 w-full bg-gradient-to-r from-blue-600 via-[#38bdf8] to-blue-600"></div>
+
+      <!-- Barra de Status Superior -->
+      <div class="bg-[#08101e] px-6 py-2.5 border-b border-[#1e2d45] flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+        <span class="inline-flex items-center gap-2 text-[#38bdf8] font-bold tracking-wider">
+          <span class="w-2 h-2 rounded-full bg-[#22c55e] animate-ping"></span>
+          SISTEMA OPERACIONAL • ACESSO RESTRITO • BAGL
+        </span>
+        <span class="text-[#94a3b8]">TERMINAL C2-SOLO // SBGL</span>
+      </div>
+
+      <!-- Cabeçalho com Emblema Vetorial SVG -->
+      <div class="px-6 py-5 border-b border-[#1e2d45] bg-gradient-to-b from-[#111c30] to-[#0d1626] flex items-center gap-4">
+        <div class="w-14 h-14 rounded-2xl bg-[#070d17] border border-sky-400/35 flex items-center justify-center shadow-[0_0_20px_rgba(56,189,248,0.18)] shrink-0">
+          <svg viewBox="0 0 64 64" class="w-10 h-10 text-[#38bdf8]" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="32" cy="32" r="27" stroke="currentColor" stroke-opacity="0.28" stroke-width="1.5" stroke-dasharray="3 3"/>
+            <path d="M6 28L24 32L28 26L10 21L6 28Z" fill="#2563eb" fill-opacity="0.7" stroke="#38bdf8" stroke-width="1.4"/>
+            <path d="M58 28L40 32L36 26L54 21L58 28Z" fill="#2563eb" fill-opacity="0.7" stroke="#38bdf8" stroke-width="1.4"/>
+            <path d="M32 11L35.2 24.5L47 32L35.2 35.5L32 51L28.8 35.5L17 32L28.8 24.5L32 11Z" fill="#0d1626" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/>
+            <circle cx="32" cy="31" r="3" fill="#22c55e"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-[#f1f5f9]">SCGT BAGL — Controle de Acesso Operacional</h2>
+          </div>
+          <p class="text-xs sm:text-sm text-[#94a3b8] mt-0.5">Sistema Colaborativo de Gerenciamento do Turnaround • Base Aérea do Galeão</p>
+        </div>
+      </div>
+
+      <!-- Abas: Acessar Sistema e Novo Operador -->
+      <div class="grid grid-cols-2 bg-[#08101e] border-b border-[#1e2d45] p-1.5 gap-1.5">
+        <button type="button" id="tab-login-btn" class="py-2.5 text-xs sm:text-sm font-bold tracking-wider uppercase rounded-lg bg-[#111c30] text-[#38bdf8] border border-sky-400/30 shadow-sm transition cursor-pointer flex items-center justify-center gap-2">
+          <i class="fa-solid fa-terminal text-xs"></i> Acessar Sistema
+        </button>
+        <button type="button" id="tab-register-btn" class="py-2.5 text-xs sm:text-sm font-bold tracking-wider uppercase rounded-lg text-[#94a3b8] hover:text-[#f1f5f9] transition cursor-pointer flex items-center justify-center gap-2">
+          <i class="fa-solid fa-user-plus text-xs"></i> Novo Operador
+        </button>
+      </div>
+
+      <div class="p-6 space-y-5">
+        <!-- Alerta de Erro -->
+        <div id="auth-error" class="hidden rounded-xl bg-red-950/60 border border-[#ef4444]/50 p-3 text-xs font-semibold text-red-300 flex items-center gap-2.5">
+          <i class="fa-solid fa-triangle-exclamation text-[#ef4444] text-sm"></i>
+          <span id="auth-error-msg">Mensagem de erro</span>
+        </div>
+
+        <!-- ABA 1: ACESSAR SISTEMA -->
+        <form id="login-form" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="login-identifier" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1.5">
+                Identificação (SARAM ou Nome de Guerra)
+              </label>
+              <div class="relative">
+                <i class="fa-solid fa-id-card text-sky-400/70 text-xs absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                <input id="login-identifier" type="text" required placeholder="Ex.: 4128901 ou SILVA" class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#1e2d45] bg-[#070d17] text-sm font-mono font-semibold uppercase text-[#f1f5f9] placeholder:text-slate-600 focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition">
+              </div>
+            </div>
+
+            <div>
+              <label for="login-sector" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1.5">
+                Setor no Turno (Opcional)
+              </label>
+              <select id="login-sector" class="w-full rounded-xl border border-[#1e2d45] bg-[#070d17] px-3 py-2.5 text-sm font-semibold text-[#f1f5f9] focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition">
+                <option value="AUTO">Usar setor cadastrado / Padrão</option>
+                <option value="Coordenação Geral">Coordenação Geral</option>
+                <option value="Operações">Operações</option>
+                <option value="Pátio">Pátio</option>
+                <option value="Combustível">Combustível</option>
+                <option value="CTLA / Carga">CTLA / Carga</option>
+                <option value="Passageiros">Passageiros</option>
+                <option value="Limpeza QTU/QTA">Limpeza QTU/QTA</option>
+                <option value="Segurança">Segurança</option>
+                <option value="Preparação para partida">Preparação para partida</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-1 mb-1.5">
+              <label for="login-pin" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8]">
+                Senha / PIN Operacional
+              </label>
+              <span class="text-[11px] text-[#94a3b8]">
+                PIN padrão do turno: <strong class="font-mono text-[#38bdf8] bg-sky-500/10 px-2 py-0.5 rounded border border-sky-400/30">bagl2026</strong>
+              </span>
+            </div>
+            <div class="relative">
+              <i class="fa-solid fa-key text-sky-400/70 text-xs absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input id="login-pin" type="password" required placeholder="Digite o PIN operacional (padrão: bagl2026)" class="w-full pl-9 pr-11 py-2.5 rounded-xl border border-[#1e2d45] bg-[#070d17] text-sm font-mono text-[#f1f5f9] placeholder:text-slate-600 focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition">
+              <button type="button" id="toggle-login-pin-btn" title="Mostrar / Ocultar senha" class="absolute right-3 top-1/2 -translate-y-1/2 text-[#94a3b8] hover:text-[#38bdf8] transition cursor-pointer p-1">
+                <i id="toggle-login-pin-icon" class="fa-solid fa-eye text-xs"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white font-bold text-sm uppercase tracking-wider py-3 rounded-xl shadow-[0_0_25px_rgba(37,99,235,0.35)] border border-sky-400/30 transition cursor-pointer flex items-center justify-center gap-2">
+            <i class="fa-solid fa-shield-halved"></i> Autenticar no Sistema
+          </button>
+        </form>
+
+        <!-- ABA 2: NOVO OPERADOR -->
+        <form id="register-form" class="hidden space-y-4">
+          <div class="bg-sky-950/40 border border-sky-500/30 rounded-xl p-3 text-xs text-sky-200 flex items-center gap-2.5">
+            <i class="fa-solid fa-circle-info text-[#38bdf8] text-sm shrink-0"></i>
+            <span>Cadastre o militar ou servidor no terminal local para autenticação rápida e rastreabilidade no turno.</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label for="reg-rank" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1">Posto / Graduação</label>
+              <select id="reg-rank" required class="w-full rounded-xl border border-[#1e2d45] bg-[#070d17] px-3 py-2 text-sm font-semibold text-[#f1f5f9] focus:border-[#38bdf8] focus:outline-none">
+                <option value="Cel">Cel</option>
+                <option value="Ten Cel">Ten Cel</option>
+                <option value="Maj">Maj</option>
+                <option value="Cap">Cap</option>
+                <option value="1T">1T</option>
+                <option value="2T" selected>2T</option>
+                <option value="Asp">Asp</option>
+                <option value="SO">SO</option>
+                <option value="1S">1S</option>
+                <option value="2S">2S</option>
+                <option value="3S">3S</option>
+                <option value="Cb">Cb</option>
+                <option value="S1">S1</option>
+                <option value="S2">S2</option>
+                <option value="CV">CV</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="reg-name" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1">Nome de Guerra</label>
+              <input id="reg-name" type="text" required placeholder="Ex.: ALMEIDA" class="w-full rounded-xl border border-[#1e2d45] bg-[#070d17] px-3 py-2 text-sm font-bold uppercase text-[#f1f5f9] placeholder:text-slate-600 focus:border-[#38bdf8] focus:outline-none">
+            </div>
+
+            <div>
+              <label for="reg-saram" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1">SARAM (7 dígitos)</label>
+              <input id="reg-saram" type="text" required maxlength="7" placeholder="Ex.: 7654321" class="w-full rounded-xl border border-[#1e2d45] bg-[#070d17] px-3 py-2 text-sm font-mono font-semibold text-[#f1f5f9] placeholder:text-slate-600 focus:border-[#38bdf8] focus:outline-none">
+            </div>
+
+            <div>
+              <label for="reg-sector" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1">Setor de Atuação</label>
+              <select id="reg-sector" required class="w-full rounded-xl border border-[#1e2d45] bg-[#070d17] px-3 py-2 text-sm font-semibold text-[#f1f5f9] focus:border-[#38bdf8] focus:outline-none">
+                <option value="Operações">Operações</option>
+                <option value="Pátio">Pátio</option>
+                <option value="Combustível">Combustível</option>
+                <option value="CTLA / Carga">CTLA / Carga</option>
+                <option value="Passageiros">Passageiros</option>
+                <option value="Limpeza QTU/QTA">Limpeza QTU/QTA</option>
+                <option value="Segurança">Segurança</option>
+                <option value="Preparação para partida">Preparação para partida</option>
+                <option value="Coordenação Geral">Coordenação Geral</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label for="reg-pin" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1">PIN / Senha Pessoal (mín. 4 caracteres)</label>
+            <div class="relative">
+              <input id="reg-pin" type="password" required minlength="4" placeholder="Defina seu PIN pessoal (ou use bagl2026)" class="w-full pr-11 pl-3 py-2 rounded-xl border border-[#1e2d45] bg-[#070d17] text-sm font-mono text-[#f1f5f9] placeholder:text-slate-600 focus:border-[#38bdf8] focus:outline-none">
+              <button type="button" id="toggle-reg-pin-btn" title="Mostrar / Ocultar senha" class="absolute right-3 top-1/2 -translate-y-1/2 text-[#94a3b8] hover:text-[#38bdf8] transition cursor-pointer p-1">
+                <i id="toggle-reg-pin-icon" class="fa-solid fa-eye text-xs"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full bg-[#22c55e] hover:bg-emerald-500 text-slate-950 font-extrabold text-sm uppercase tracking-wider py-3 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.25)] transition cursor-pointer flex items-center justify-center gap-2">
+            <i class="fa-solid fa-user-check"></i> Salvar Credencial e Entrar
+          </button>
+        </form>
+
+        <!-- ACESSO RÁPIDO (1 CLIQUE) — 4 CRACHÁS TÁTICOS ESCUROS -->
+        <div class="pt-4 border-t border-[#1e2d45]">
+          <div class="flex items-center justify-between mb-2.5">
+            <span class="text-[11px] font-mono font-bold uppercase tracking-wider text-[#38bdf8] flex items-center gap-1.5">
+              <i class="fa-solid fa-bolt text-[#f59e0b]"></i> Acesso Rápido (1 Clique)
+            </span>
+            <span class="text-[11px] text-[#94a3b8]">Credenciais de turno pré-autorizadas</span>
+          </div>
+          <div id="quick-login-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button type="button" data-quick-rank="Cap Av" data-quick-name="SILVA" data-quick-saram="4128901" data-quick-sector="Operações" class="quick-login-btn text-left p-2.5 rounded-xl bg-[#070d17] border border-[#1e2d45] hover:border-[#38bdf8]/60 hover:bg-[#111c30] transition flex items-center justify-between gap-2 cursor-pointer group">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-sky-500/15 border border-sky-400/30 text-[#38bdf8] flex items-center justify-center text-xs shrink-0">
+                  <i class="fa-solid fa-jet-fighter"></i>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-[#f1f5f9] group-hover:text-[#38bdf8]">Cap Av SILVA</div>
+                  <div class="text-[11px] text-[#94a3b8]">Operações</div>
+                </div>
+              </div>
+              <span class="text-[10px] font-mono font-bold bg-[#0d1626] text-sky-300 px-2 py-0.5 rounded border border-[#1e2d45]">4128901</span>
+            </button>
+
+            <button type="button" data-quick-rank="2S BMA" data-quick-name="COSTA" data-quick-saram="6234118" data-quick-sector="Pátio" class="quick-login-btn text-left p-2.5 rounded-xl bg-[#070d17] border border-[#1e2d45] hover:border-[#38bdf8]/60 hover:bg-[#111c30] transition flex items-center justify-between gap-2 cursor-pointer group">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-400/30 text-[#f59e0b] flex items-center justify-center text-xs shrink-0">
+                  <i class="fa-solid fa-road"></i>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-[#f1f5f9] group-hover:text-[#38bdf8]">2S BMA COSTA</div>
+                  <div class="text-[11px] text-[#94a3b8]">Pátio</div>
+                </div>
+              </div>
+              <span class="text-[10px] font-mono font-bold bg-[#0d1626] text-sky-300 px-2 py-0.5 rounded border border-[#1e2d45]">6234118</span>
+            </button>
+
+            <button type="button" data-quick-rank="3S SAD" data-quick-name="SANTOS" data-quick-saram="7190442" data-quick-sector="Passageiros" class="quick-login-btn text-left p-2.5 rounded-xl bg-[#070d17] border border-[#1e2d45] hover:border-[#38bdf8]/60 hover:bg-[#111c30] transition flex items-center justify-between gap-2 cursor-pointer group">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-400/30 text-[#22c55e] flex items-center justify-center text-xs shrink-0">
+                  <i class="fa-solid fa-people-group"></i>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-[#f1f5f9] group-hover:text-[#38bdf8]">3S SAD SANTOS</div>
+                  <div class="text-[11px] text-[#94a3b8]">Passageiros</div>
+                </div>
+              </div>
+              <span class="text-[10px] font-mono font-bold bg-[#0d1626] text-sky-300 px-2 py-0.5 rounded border border-[#1e2d45]">7190442</span>
+            </button>
+
+            <button type="button" data-quick-rank="Cb BMA" data-quick-name="OLIVEIRA" data-quick-saram="7548210" data-quick-sector="Combustível" class="quick-login-btn text-left p-2.5 rounded-xl bg-[#070d17] border border-[#1e2d45] hover:border-[#38bdf8]/60 hover:bg-[#111c30] transition flex items-center justify-between gap-2 cursor-pointer group">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-400/30 text-[#818cf8] flex items-center justify-center text-xs shrink-0">
+                  <i class="fa-solid fa-gas-pump"></i>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-[#f1f5f9] group-hover:text-[#38bdf8]">Cb BMA OLIVEIRA</div>
+                  <div class="text-[11px] text-[#94a3b8]">Combustível</div>
+                </div>
+              </div>
+              <span class="text-[10px] font-mono font-bold bg-[#0d1626] text-sky-300 px-2 py-0.5 rounded border border-[#1e2d45]">7548210</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 2. CABEÇALHO DE COMANDO & TELEMETRIA                                  -->
+  <!-- ===================================================================== -->
+  <header class="bg-[#091221]/95 backdrop-blur-md text-[#f1f5f9] shadow-[0_4px_24px_rgba(0,0,0,0.65)] border-b border-[#1e2d45] sticky top-0 z-30">
+    <div class="h-0.5 w-full bg-gradient-to-r from-blue-600 via-[#38bdf8] to-blue-600"></div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+      <!-- Identificação do Centro de Operações -->
+      <div class="flex items-center gap-3">
+        <div class="bg-[#070d17] p-2.5 rounded-xl border border-sky-400/35 shadow-[0_0_15px_rgba(56,189,248,0.15)]">
+          <i class="fa-solid fa-plane-departure text-xl text-[#38bdf8]"></i>
+        </div>
+        <div>
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-[#f1f5f9]">SCGT BAGL</h1>
+            <span class="bg-sky-500/15 text-[#38bdf8] text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border border-sky-400/30">
+              SBGL • C2-SOLO
+            </span>
+          </div>
+          <p class="text-[11px] sm:text-xs font-mono uppercase tracking-wider text-[#94a3b8] mt-0.5">
+            SISTEMA COLABORATIVO DE GERENCIAMENTO DO TURNAROUND • BASE AÉREA DO GALEÃO
+          </p>
+        </div>
+      </div>
+
+      <!-- Direita do Cabeçalho: Relógios LOCAL / ZULU + Crachá do Operador -->
+      <div class="flex flex-wrap items-center gap-2.5">
+        <!-- Relógios em Tempo Real: LOCAL e ZULU (UTC) -->
+        <div class="flex items-center gap-3 text-xs bg-[#070d17] px-3.5 py-2 rounded-xl border border-[#1e2d45]">
+          <div class="flex items-center gap-1.5">
+            <i class="fa-regular fa-clock text-[#38bdf8]"></i>
+            <span class="text-[#94a3b8] font-semibold">LOCAL:</span>
+            <strong id="live-clock" class="font-mono text-[#f1f5f9] tracking-wider">--:--:--</strong>
+          </div>
+          <span class="text-[#1e2d45]">|</span>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[#94a3b8] font-semibold">ZULU:</span>
+            <strong id="zulu-clock" class="font-mono text-[#38bdf8] tracking-wider">--:--:--Z</strong>
+          </div>
+        </div>
+
+        <!-- Crachá Tático do Operador Logado -->
+        <div id="operator-badge" class="hidden bg-[#070d17] border border-sky-400/30 rounded-xl px-3.5 py-1.5 flex flex-wrap items-center gap-3 shadow-inner">
+          <div class="relative w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-400/30 flex items-center justify-center text-[#38bdf8] shrink-0">
+            <i class="fa-solid fa-id-badge text-sm"></i>
+            <span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#22c55e] ring-2 ring-[#070d17] animate-pulse" title="Operador Online"></span>
+          </div>
+          <div class="leading-tight">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span id="badge-op-name" class="text-xs sm:text-sm font-extrabold text-[#f1f5f9]">Cap Av SILVA</span>
+              <span id="badge-op-saram" class="text-[10px] font-mono font-bold bg-[#111c30] text-sky-300 px-1.5 py-0.5 rounded border border-[#1e2d45]">SARAM 4128901</span>
+              <span class="text-[9px] font-mono font-extrabold uppercase px-1.5 py-0.5 rounded bg-emerald-500/15 text-[#22c55e] border border-emerald-400/30">ONLINE</span>
+            </div>
+            <div id="badge-op-sector" class="text-[11px] text-[#94a3b8] font-medium mt-0.5">Operações</div>
+          </div>
+          <div class="flex items-center gap-1.5 pl-2.5 border-l border-[#1e2d45]">
+            <button type="button" id="btn-switch-operator" title="Trocar Operador (Passagem de Turno)" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-[#111c30] hover:bg-sky-500/20 text-sky-300 border border-[#1e2d45] hover:border-sky-400/40 transition cursor-pointer flex items-center gap-1">
+              <i class="fa-solid fa-repeat"></i> <span>Trocar Operador</span>
+            </button>
+            <button type="button" id="btn-logout-operator" title="Encerrar Sessão" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-red-950/70 hover:bg-[#ef4444] text-red-200 hover:text-white border border-red-500/40 transition cursor-pointer flex items-center gap-1">
+              <i class="fa-solid fa-right-from-bracket"></i> <span>Sair</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- CONTEÚDO PRINCIPAL (PAINEL C2 DARK MODE)                              -->
+  <!-- ===================================================================== -->
+  <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6 flex-1">
+
+    <!-- 3. CADASTRO DA OPERAÇÃO & FROTA COMPLETA DA FAB EM CASCATA (3 NÍVEIS) -->
+    <section class="bg-[#0d1626] rounded-2xl shadow-lg border border-[#1e2d45] p-5 sm:p-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 mb-5 border-b border-[#1e2d45]">
+        <div class="flex items-center gap-3">
+          <span class="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-400/30 text-[#38bdf8] flex items-center justify-center font-bold">
+            <i class="fa-solid fa-clipboard-list"></i>
+          </span>
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-[#f1f5f9] leading-tight">Cadastro da Operação</h2>
+            <p class="text-xs text-[#94a3b8]">Identifique a aeronave pela busca rápida por matrícula ou seleção em cascata de 3 níveis</p>
+          </div>
+        </div>
+        <span id="operation-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-[#070d17] text-[#94a3b8] border border-[#1e2d45] w-fit">
+          <span class="w-2 h-2 rounded-full bg-slate-500"></span> AGUARDANDO INÍCIO
+        </span>
+      </div>
+
+      <!-- SUB-BLOCO: IDENTIFICAÇÃO DA AERONAVE EM 3 NÍVEIS + BUSCA RÁPIDA -->
+      <div class="rounded-xl bg-[#070d17]/90 border border-[#1e2d45] p-4 mb-5 space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="bg-blue-600/20 text-sky-300 border border-sky-400/30 text-[11px] font-mono font-bold uppercase tracking-wider px-2.5 py-1 rounded-md">
+              <i class="fa-solid fa-jet-fighter-up mr-1 text-[#38bdf8]"></i> Identificação da Aeronave
+            </span>
+            <span class="text-xs text-[#94a3b8] hidden sm:inline">Frota completa da FAB (7 categorias)</span>
+          </div>
+
+          <!-- Busca Rápida por Matrícula -->
+          <div class="relative w-full md:w-80">
+            <i class="fa-solid fa-magnifying-glass text-sky-400/70 text-xs absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input
+              id="quick-tail-search"
+              type="text"
+              placeholder="Busca rápida por matrícula (ex: 2855, 2101, 4100, 6700)..."
+              class="w-full pl-8 pr-8 py-1.5 rounded-lg border border-[#1e2d45] bg-[#0d1626] text-xs sm:text-sm font-mono text-[#f1f5f9] placeholder:font-sans placeholder:text-slate-500 focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition"
+            >
+            <button type="button" id="clear-quick-search" class="hidden text-[#94a3b8] hover:text-[#38bdf8] text-xs absolute right-2.5 top-1/2 -translate-y-1/2 cursor-pointer">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div id="quick-search-results" class="hidden absolute z-30 left-0 right-0 mt-1 bg-[#0d1626] rounded-xl shadow-2xl border border-sky-400/30 max-h-64 overflow-y-auto divide-y divide-[#1e2d45]"></div>
+          </div>
+        </div>
+
+        <!-- 3 Níveis em Cascata -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Nível 1: Categoria / Aviação -->
+          <div>
+            <label for="ac-category" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1.5">
+              <span class="inline-block w-4 h-4 rounded-full bg-sky-500/20 text-[#38bdf8] border border-sky-400/40 font-mono text-[10px] text-center leading-3.5 mr-1">1</span>
+              Categoria / Aviação
+            </label>
+            <select id="ac-category" class="w-full rounded-xl border border-[#1e2d45] bg-[#0d1626] px-3 py-2 text-sm font-semibold text-[#f1f5f9] focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition"></select>
+          </div>
+
+          <!-- Nível 2: Modelo Individual -->
+          <div>
+            <label for="aircraft" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1.5">
+              <span class="inline-block w-4 h-4 rounded-full bg-sky-500/20 text-[#38bdf8] border border-sky-400/40 font-mono text-[10px] text-center leading-3.5 mr-1">2</span>
+              Modelo Individual
+            </label>
+            <select id="aircraft" class="w-full rounded-xl border border-[#1e2d45] bg-[#0d1626] px-3 py-2 text-sm font-semibold text-[#f1f5f9] focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition"></select>
+          </div>
+
+          <!-- Nível 3: Matrícula FAB -->
+          <div>
+            <label for="tail-select" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1.5">
+              <span class="inline-block w-4 h-4 rounded-full bg-sky-500/20 text-[#38bdf8] border border-sky-400/40 font-mono text-[10px] text-center leading-3.5 mr-1">3</span>
+              Matrícula FAB
+            </label>
+            <select id="tail-select" class="w-full rounded-xl border border-[#1e2d45] bg-[#0d1626] px-3 py-2 text-sm font-mono font-bold text-[#38bdf8] focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition"></select>
+            <input id="tail-custom" type="text" placeholder="Digite a matrícula (ex.: FAB 2860 / N123AB)" class="hidden mt-2 w-full rounded-xl border border-sky-400/50 bg-[#0d1626] px-3 py-2 text-sm font-mono uppercase text-[#f1f5f9] placeholder:text-slate-500 focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition">
+          </div>
+        </div>
+
+        <!-- Cartão Informativo Dinâmico da Aeronave -->
+        <div id="aircraft-info-card" class="rounded-xl bg-[#0d1626] border border-sky-400/25 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-start sm:items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-[#38bdf8] flex items-center justify-center shrink-0 border border-sky-400/25">
+              <i class="fa-solid fa-plane text-lg"></i>
+            </div>
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span id="info-full-name" class="text-sm font-extrabold text-[#f1f5f9]">Embraer KC-390 Millennium</span>
+                <span id="info-manufacturer" class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-[#070d17] text-[#94a3b8] border border-[#1e2d45]">Embraer Defesa &amp; Segurança</span>
+              </div>
+              <p id="info-squadron" class="text-xs text-[#94a3b8] mt-0.5">1º GTT (Anápolis) / 1º/1º GT (Galeão - RJ)</p>
+            </div>
+          </div>
+          <div class="sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-[#1e2d45]">
+            <span class="block text-[10px] font-mono font-bold uppercase tracking-wider text-[#94a3b8]">Porte / Perfil Operacional</span>
+            <span id="info-profile" class="text-xs font-bold text-[#38bdf8]">Grande Porte • Rampa Traseira / QAV-1 Alta Vazão</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Demais Campos Operacionais -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div>
+          <label for="mission" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1.5">Missão</label>
+          <select id="mission" class="w-full rounded-xl border border-[#1e2d45] bg-[#070d17] px-3 py-2 text-sm font-semibold text-[#f1f5f9] focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition">
+            <option value="CAN">CAN (Correio Aéreo Nacional)</option>
+            <option value="Autoridade">Transporte de Autoridade / VIP</option>
+            <option value="Logística">Transporte Logístico</option>
+            <option value="EVAM">EVAM (Evacuação Aeromédica)</option>
+            <option value="SAR">SAR (Busca e Salvamento)</option>
+            <option value="Instrução">Instrução / Treinamento</option>
+            <option value="Operacional">Operacional / Emprego</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="place" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1.5">Local</label>
+          <select id="place" class="w-full rounded-xl border border-[#1e2d45] bg-[#070d17] px-3 py-2 text-sm font-semibold text-[#f1f5f9] focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition">
+            <option value="Pátio Militar">Pátio Militar</option>
+            <option value="Pérgola">Pérgola</option>
+            <option value="Pátio CAN">Pátio CAN</option>
+            <option value="HOT Point">HOT Point</option>
+            <option value="Terminal de Cargas">Terminal de Cargas</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="eta" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1.5">Previsão de Pouso (ETA)</label>
+          <input id="eta" type="time" class="w-full rounded-xl border border-[#1e2d45] bg-[#070d17] px-3 py-2 text-sm font-mono font-semibold text-[#f1f5f9] [color-scheme:dark] focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition">
+        </div>
+
+        <div>
+          <label for="pax" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1.5">Passageiros (PAX)</label>
+          <input id="pax" type="number" min="0" value="0" class="w-full rounded-xl border border-[#1e2d45] bg-[#070d17] px-3 py-2 text-sm font-mono font-semibold text-[#f1f5f9] focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition">
+        </div>
+
+        <div>
+          <label for="cargo" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1.5">Carga Estimada (kg)</label>
+          <input id="cargo" type="number" min="0" step="10" value="0" class="w-full rounded-xl border border-[#1e2d45] bg-[#070d17] px-3 py-2 text-sm font-mono font-semibold text-[#f1f5f9] focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition">
+        </div>
+
+        <div>
+          <label for="resp" class="block text-[11px] font-bold uppercase tracking-wider text-[#94a3b8] mb-1.5">Coordenador / Responsável</label>
+          <input id="resp" type="text" placeholder="Posto/Grad e Nome de Guerra" class="w-full rounded-xl border border-[#1e2d45] bg-[#070d17] px-3 py-2 text-sm font-semibold text-[#f1f5f9] placeholder:text-slate-600 focus:border-[#38bdf8] focus:outline-none focus:ring-2 focus:ring-sky-400/20 transition">
+        </div>
+      </div>
+
+      <!-- Botões de Ação -->
+      <div class="flex flex-wrap items-center gap-2.5 mt-5 pt-4 border-t border-[#1e2d45]">
+        <button type="button" id="btn-start-op" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm uppercase tracking-wider px-4 py-2.5 rounded-xl shadow-[0_0_20px_rgba(37,99,235,0.3)] border border-sky-400/30 transition cursor-pointer">
+          <i class="fa-solid fa-play"></i> Iniciar Operação
+        </button>
+        <button type="button" id="btn-generate-pdf" class="inline-flex items-center gap-2 bg-rose-600/90 hover:bg-rose-500 text-white font-bold text-xs sm:text-sm uppercase tracking-wider px-4 py-2.5 rounded-xl border border-rose-400/30 transition cursor-pointer">
+          <i class="fa-solid fa-file-pdf"></i> Gerar PDF
+        </button>
+        <button type="button" id="btn-export-csv" class="inline-flex items-center gap-2 bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm uppercase tracking-wider px-4 py-2.5 rounded-xl border border-emerald-400/30 transition cursor-pointer">
+          <i class="fa-solid fa-file-csv"></i> Exportar CSV
+        </button>
+        <button type="button" id="btn-reset-all" class="inline-flex items-center gap-2 bg-[#111c30] hover:bg-slate-800 text-[#94a3b8] hover:text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl border border-[#1e2d45] transition cursor-pointer sm:ml-auto">
+          <i class="fa-solid fa-rotate-left"></i> Limpar
+        </button>
+      </div>
+    </section>
+
+    <!-- 4. RESUMO OPERACIONAL (HUD) -->
+    <section class="bg-[#0d1626] rounded-2xl shadow-lg border border-[#1e2d45] p-5 sm:p-6">
+      <div class="flex items-center gap-3 pb-4 mb-5 border-b border-[#1e2d45]">
+        <span class="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-400/30 text-[#38bdf8] flex items-center justify-center font-bold">
+          <i class="fa-solid fa-gauge-high"></i>
+        </span>
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-[#f1f5f9] leading-tight">Resumo Operacional (HUD)</h2>
+          <p class="text-xs text-[#94a3b8]">Telemetria e indicadores em tempo real do turnaround em curso</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- KPI 1: Status Geral -->
+        <div class="bg-[#070d17] border border-[#1e2d45] border-l-4 border-l-blue-500 rounded-xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-[11px] font-mono font-bold uppercase tracking-wider text-[#94a3b8]">
+            <span>Status Geral</span>
+            <i class="fa-solid fa-signal text-[#38bdf8]"></i>
+          </div>
+          <div id="status" class="text-xl sm:text-2xl font-extrabold text-[#f1f5f9] mt-2">Não iniciada</div>
+          <div id="status-sub" class="text-xs text-[#94a3b8] mt-1">Aguardando acionamento</div>
+        </div>
+
+        <!-- KPI 2: Conclusão -->
+        <div class="bg-[#070d17] border border-[#1e2d45] border-l-4 border-l-[#22c55e] rounded-xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-[11px] font-mono font-bold uppercase tracking-wider text-[#94a3b8]">
+            <span>Conclusão</span>
+            <i class="fa-solid fa-list-check text-[#22c55e]"></i>
+          </div>
+          <div class="flex items-baseline justify-between mt-2">
+            <span id="percent" class="text-2xl sm:text-3xl font-mono font-extrabold text-[#22c55e]">0%</span>
+            <span id="fraction" class="text-xs font-mono font-semibold text-[#94a3b8]">0/0 etapas</span>
+          </div>
+          <div class="w-full h-2.5 bg-[#111c30] rounded-full overflow-hidden mt-2 border border-[#1e2d45]">
+            <div id="bar" class="h-full bg-gradient-to-r from-[#22c55e] to-emerald-400 shadow-[0_0_12px_rgba(34,197,94,0.65)] transition-all duration-300 rounded-full" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- KPI 3: Tempo de Solo -->
+        <div class="bg-[#070d17] border border-[#1e2d45] border-l-4 border-l-[#38bdf8] rounded-xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-[11px] font-mono font-bold uppercase tracking-wider text-[#94a3b8]">
+            <span>Tempo de Solo</span>
+            <span id="ground-status-pill" class="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#111c30] text-[#94a3b8] border border-[#1e2d45]">
+              <i class="fa-solid fa-stopwatch text-[#38bdf8]"></i> Aguardando
+            </span>
+          </div>
+          <div id="ground" class="text-2xl sm:text-3xl font-mono font-extrabold text-[#38bdf8] tracking-wider mt-2">00:00:00</div>
+          <div id="ground-sub" class="text-xs font-mono text-[#94a3b8] mt-1">Início: --:--</div>
+        </div>
+
+        <!-- KPI 4: Próxima Pendência -->
+        <div class="bg-[#070d17] border border-[#1e2d45] border-l-4 border-l-[#ef4444] rounded-xl p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-[11px] font-mono font-bold uppercase tracking-wider text-[#94a3b8]">
+            <span>Próxima Pendência</span>
+            <i class="fa-solid fa-forward-step text-[#ef4444]"></i>
+          </div>
+          <div id="next" class="text-sm font-bold text-[#f1f5f9] mt-2 line-clamp-2 leading-snug">--</div>
+          <div class="text-xs text-[#94a3b8] mt-1">Prioridade na sequência</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BANNER DE ENCERRAMENTO OPERACIONAL (100% CONCLUÍDO) -->
+    <section id="completion-banner" class="hidden rounded-2xl bg-gradient-to-r from-emerald-950 via-[#0b2922] to-[#0d1626] text-[#f1f5f9] p-5 sm:p-6 shadow-[0_0_30px_rgba(34,197,94,0.2)] border border-[#22c55e]/50">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="flex items-start sm:items-center gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-[#22c55e]/15 border border-[#22c55e]/40 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-award text-2xl text-[#22c55e]"></i>
+          </div>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="bg-[#22c55e]/20 text-emerald-300 border border-[#22c55e]/40 text-[10px] font-mono font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+                TEMPO FINALIZADO • 100% CONCLUÍDO
+              </span>
+              <span id="banner-ac-badge" class="text-xs font-mono font-bold bg-[#070d17] border border-[#22c55e]/30 px-2.5 py-0.5 rounded-full text-[#38bdf8]">
+                KC-390 • FAB 2853
+              </span>
+            </div>
+            <h3 class="text-lg sm:text-xl font-extrabold text-white mt-1">Turnaround Encerrado com Sucesso!</h3>
+            <p id="banner-summary-text" class="text-xs sm:text-sm text-emerald-200/90 mt-0.5">
+              Cronômetro parado em <strong class="font-mono text-white">00:00:00</strong> • Relatório PDF institucional gerado automaticamente.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button type="button" id="btn-banner-pdf" class="inline-flex items-center gap-2 bg-[#22c55e] hover:bg-emerald-400 text-slate-950 font-extrabold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-md transition cursor-pointer">
+            <i class="fa-solid fa-file-pdf"></i> Baixar Relatório PDF
+          </button>
+          <button type="button" id="btn-close-banner" class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/5 hover:bg-white/15 text-emerald-200 border border-[#22c55e]/30 transition cursor-pointer" title="Ocultar aviso">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. CHECKLIST COLABORATIVO POR SETOR (8 SETORES) -->
+    <section class="bg-[#0d1626] rounded-2xl shadow-lg border border-[#1e2d45] p-5 sm:p-6">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 mb-5 border-b border-[#1e2d45]">
+        <div class="flex items-center gap-3">
+          <span class="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-400/30 text-[#38bdf8] flex items-center justify-center font-bold">
+            <i class="fa-solid fa-users-gear"></i>
+          </span>
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-[#f1f5f9] leading-tight">Checklist Colaborativo por Setor</h2>
+            <p class="text-xs text-[#94a3b8]">Acompanhe, inicie, conclua ou marque etapas como N/A por equipe</p>
+          </div>
+        </div>
+
+        <!-- Barra de Filtros e Busca -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          <div class="inline-flex flex-wrap rounded-xl bg-[#070d17] p-1 border border-[#1e2d45] gap-1" role="group">
+            <button type="button" data-filter="todos" id="filter-todos" class="filter-btn px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white shadow-sm transition cursor-pointer">
+              Todos
+            </button>
+            <button type="button" data-filter="meu-setor" id="filter-meu-setor" class="hidden filter-btn px-3 py-1.5 text-xs font-bold rounded-lg text-[#94a3b8] hover:text-white transition cursor-pointer flex items-center gap-1">
+              <i class="fa-solid fa-star text-[#f59e0b] text-[10px]"></i> Meu Setor
+            </button>
+            <button type="button" data-filter="pendentes" id="filter-pendentes" class="filter-btn px-3 py-1.5 text-xs font-bold rounded-lg text-[#94a3b8] hover:text-white transition cursor-pointer">
+              Pendentes / Em Curso
+            </button>
+            <button type="button" data-filter="concluidos" id="filter-concluidos" class="filter-btn px-3 py-1.5 text-xs font-bold rounded-lg text-[#94a3b8] hover:text-white transition cursor-pointer">
+              Concluídos
+            </button>
+          </div>
+
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass text-sky-400/70 text-xs absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input id="search-checklist" type="text" placeholder="Buscar setor ou item..." class="w-full sm:w-52 pl-8 pr-3 py-1.5 rounded-xl border border-[#1e2d45] bg-[#070d17] text-xs sm:text-sm text-[#f1f5f9] placeholder:text-slate-500 focus:border-[#38bdf8] focus:outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid de 2 Colunas com os 8 Setores -->
+      <div id="sectors" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+    </section>
+
+    <!-- 6. REGISTRO DE EVENTOS (AUDITORIA) -->
+    <section class="bg-[#0d1626] rounded-2xl shadow-lg border border-[#1e2d45] p-5 sm:p-6">
+      <div class="flex items-center justify-between gap-2 pb-4 mb-4 border-b border-[#1e2d45]">
+        <div class="flex items-center gap-3">
+          <span class="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-400/30 text-[#38bdf8] flex items-center justify-center font-bold">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+          </span>
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-[#f1f5f9] leading-tight">Registro de Eventos (Auditoria)</h2>
+            <p class="text-xs text-[#94a3b8]">Linha do tempo auditável de ações por operador e setor</p>
+          </div>
+        </div>
+        <span id="log-count" class="text-xs font-mono font-bold text-[#38bdf8] bg-[#070d17] border border-[#1e2d45] px-2.5 py-1 rounded-full">0 registros</span>
+      </div>
+
+      <div class="overflow-x-auto max-h-72 overflow-y-auto rounded-xl border border-[#1e2d45]">
+        <table id="log" class="w-full text-left border-collapse">
+          <thead class="bg-[#070d17] text-[#38bdf8] text-[11px] font-mono uppercase tracking-wider sticky top-0 border-b border-[#1e2d45]">
+            <tr>
+              <th class="py-2.5 px-3 font-bold">Horário</th>
+              <th class="py-2.5 px-3 font-bold">Setor</th>
+              <th class="py-2.5 px-3 font-bold">Item</th>
+              <th class="py-2.5 px-3 font-bold">Ação</th>
+              <th class="py-2.5 px-3 font-bold">Operador Responsável</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#1e2d45] text-xs sm:text-sm bg-[#0d1626]">
+            <tr id="empty-log-row">
+              <td colspan="5" class="py-6 text-center text-[#94a3b8] italic">Nenhum evento registrado até o momento.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-[#091221] border-t border-[#1e2d45] py-4 px-6 text-center text-xs font-mono text-[#94a3b8]">
+    SCGT BAGL — BASE AÉREA DO GALEÃO • CENTRO DE COORDENAÇÃO DE TURNAROUND
+  </footer>
+
+  <!-- Toast de Feedback Tático -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden items-center gap-2.5 bg-[#0d1626] text-[#f1f5f9] text-xs sm:text-sm font-semibold px-4 py-3 rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.85)] border border-[#38bdf8]/40 transition-all">
+    <i class="fa-solid fa-circle-check text-[#22c55e]"></i>
+    <span id="toast-msg">Ação realizada</span>
+  </div>
+
+  <!-- Área Oculta para Fallback de Impressão A4 caso o CDN do jsPDF não carregue -->
+  <div id="print-fallback-area" class="hidden"></div>
+
+<script>
+  // =========================================================================
+  // 1. BANCO DE DADOS COMPLETO DA FROTA DA FAB (7 CATEGORIAS / MODELOS)
+  // =========================================================================
+  const fabFleetCatalog = {
+    "Transporte Logístico & REVO": {
+      "KC-390 Millennium": {
+        fullName: "Embraer KC-390 Millennium",
+        manufacturer: "Embraer Defesa & Segurança",
+        squadron: "1º GTT (Anápolis) / 1º/1º GT (Galeão - RJ)",
+        profile: "Grande Porte • Rampa Traseira / QAV-1 Alta Vazão",
+        tails: ["FAB 2853", "FAB 2854", "FAB 2855", "FAB 2856", "FAB 2857", "FAB 2858", "FAB 2859"]
+      },
+      "KC-30 (A330-200)": {
+        fullName: "Airbus A330-200 (KC-30)",
+        manufacturer: "Airbus Defence and Space",
+        squadron: "2º/2º GT — Esquadrão Corsário (Galeão - RJ)",
+        profile: "Widebody • Finger/Escada / GPU 115V / Alta Capacidade",
+        tails: ["FAB 2901", "FAB 2902"]
+      },
+      "C-105 Amazonas": {
+        fullName: "Airbus C-105 Amazonas (C-295)",
+        manufacturer: "Airbus Defence and Space",
+        squadron: "1º/9º GAv (Manaus) / 1º/15º GAv (Campo Grande)",
+        profile: "Médio Porte • Rampa Traseira / Carga Paletizada",
+        tails: ["FAB 2800", "FAB 2801", "FAB 2802", "FAB 2803", "FAB 2804", "FAB 2805", "FAB 2806", "FAB 2807", "FAB 2808", "FAB 2809", "FAB 2810", "FAB 2811"]
+      },
+      "SC-105 Amazonas SAR": {
+        fullName: "Airbus SC-105 Amazonas SAR (Persuader)",
+        manufacturer: "Airbus Defence and Space",
+        squadron: "2º/10º GAv — Esquadrão Pelicano (Campo Grande - MS)",
+        profile: "Médio Porte • Busca e Salvamento (SAR) / Radar EO/IR",
+        tails: ["FAB 6550", "FAB 6551", "FAB 6552"]
+      },
+      "C-99": {
+        fullName: "Embraer C-99 (ERJ-145)",
+        manufacturer: "Embraer",
+        squadron: "1º/2º GT — Esquadrão Condor (Galeão - RJ)",
+        profile: "Médio Porte • Transporte de Tropa / Passageiros CAN",
+        tails: ["FAB 2520", "FAB 2521", "FAB 2522", "FAB 2523", "FAB 2524"]
+      },
+      "C-97 Brasília": {
+        fullName: "Embraer C-97 Brasília (EMB-120)",
+        manufacturer: "Embraer",
+        squadron: "ETAs (1º, 2º, 3º, 5º, 6º e 7º ETA)",
+        profile: "Leve / Médio Porte • Transporte Regional / EVAM",
+        tails: ["FAB 2001", "FAB 2002", "FAB 2003", "FAB 2004", "FAB 2005", "FAB 2006", "FAB 2007", "FAB 2008", "FAB 2009", "FAB 2010", "FAB 2011", "FAB 2012", "FAB 2013", "FAB 2014", "FAB 2015", "FAB 2016", "FAB 2017", "FAB 2018", "FAB 2019", "FAB 2020"]
+      },
+      "C-95M Bandeirante": {
+        fullName: "Embraer C-95M Bandeirante Modernizado",
+        manufacturer: "Embraer",
+        squadron: "ETAs e Esquadrões Regionais",
+        profile: "Leve Porte • Pistas Curtas / Carga Leve / PAX",
+        tails: ["FAB 2131", "FAB 2134", "FAB 2142", "FAB 2145", "FAB 2152", "FAB 2167", "FAB 2171", "FAB 2180", "FAB 2195", "FAB 2201", "FAB 2215", "FAB 2224", "FAB 2232", "FAB 2248", "FAB 2261", "FAB 2270", "FAB 2285", "FAB 2301", "FAB 2315", "FAB 2320"]
+      },
+      "C-98 Caravan": {
+        fullName: "Cessna C-98 Grand Caravan (C-208B)",
+        manufacturer: "Cessna Aircraft",
+        squadron: "ETAs (1º, 2º, 3º, 4º, 5º, 6º e 7º ETA)",
+        profile: "Utilitário Leve • Acesso Simplificado / Apoio Regional",
+        tails: ["FAB 2700", "FAB 2701", "FAB 2702", "FAB 2703", "FAB 2704", "FAB 2705", "FAB 2706", "FAB 2707", "FAB 2708", "FAB 2709", "FAB 2710", "FAB 2711", "FAB 2712", "FAB 2713", "FAB 2714", "FAB 2715", "FAB 2716", "FAB 2717", "FAB 2718", "FAB 2719", "FAB 2720", "FAB 2725", "FAB 2730", "FAB 2735", "FAB 2740"]
+      }
+    },
+
+    "Transporte Especial / VIP (GTE)": {
+      "VC-1 (Airbus A319CJ)": {
+        fullName: "Airbus VC-1 (A319CJ Presidencial)",
+        manufacturer: "Airbus",
+        squadron: "GTE — Grupo de Transporte Especial (Brasília - DF)",
+        profile: "VIP Presidencial • Segurança Máxima / Protocolo Cerimonial",
+        tails: ["FAB 2101"]
+      },
+      "VC-2 (Embraer 190)": {
+        fullName: "Embraer VC-2 (E-190 VIP)",
+        manufacturer: "Embraer",
+        squadron: "GTE — Grupo de Transporte Especial (Brasília - DF)",
+        profile: "VIP Executivo • Cerimonial de Autoridades",
+        tails: ["FAB 2590", "FAB 2591"]
+      },
+      "VC-99B Legacy": {
+        fullName: "Embraer VC-99B (Legacy 600)",
+        manufacturer: "Embraer",
+        squadron: "GTE — Grupo de Transporte Especial (Brasília - DF)",
+        profile: "VIP Executivo • Atendimento Rápido de Autoridades",
+        tails: ["FAB 2580", "FAB 2581", "FAB 2582", "FAB 2583", "FAB 2584", "FAB 2585"]
+      },
+      "VC-99C (ERJ-135)": {
+        fullName: "Embraer VC-99C (ERJ-135)",
+        manufacturer: "Embraer",
+        squadron: "GTE — Grupo de Transporte Especial (Brasília - DF)",
+        profile: "VIP Executivo • Transporte de Comitivas",
+        tails: ["FAB 2560", "FAB 2561"]
+      },
+      "VH-35 (EC135 VIP)": {
+        fullName: "Airbus Helicopters VH-35 (EC135 VIP)",
+        manufacturer: "Helibras / Eurocopter",
+        squadron: "GTE — Grupo de Transporte Especial (Brasília - DF)",
+        profile: "Helicóptero VIP Leve • Transporte de Autoridades",
+        tails: ["FAB 8601", "FAB 8602"]
+      },
+      "VH-36 (H225M VIP)": {
+        fullName: "Airbus Helicopters VH-36 Caracal VIP (H225M)",
+        manufacturer: "Helibras / Airbus Helicopters",
+        squadron: "GTE — Grupo de Transporte Especial (Brasília - DF)",
+        profile: "Helicóptero VIP Pesado • Transporte Presidencial / Segurança",
+        tails: ["FAB 8501", "FAB 8502"]
+      }
+    },
+
+    "Aviação de Patrulha & IVR": {
+      "P-3AM Orion": {
+        fullName: "Lockheed P-3AM Orion (Patrulha Marítima)",
+        manufacturer: "Lockheed / Airbus",
+        squadron: "1º/7º GAv — Esquadrão Orungan (Santa Cruz - RJ)",
+        profile: "Grande Porte Quadrimotor • Patrulha Oceânica / ASW",
+        tails: ["FAB 7200", "FAB 7201", "FAB 7202", "FAB 7203", "FAB 7204", "FAB 7205", "FAB 7206", "FAB 7207", "FAB 7208"]
+      },
+      "P-95BM Bandeirulha": {
+        fullName: "Embraer P-95BM Bandeirulha",
+        manufacturer: "Embraer",
+        squadron: "2º/7º GAv (Canoas) / 3º/7º GAv (Belém)",
+        profile: "Leve Porte • Patrulha Marítima Costeira",
+        tails: ["FAB 7100", "FAB 7101", "FAB 7102", "FAB 7103", "FAB 7104", "FAB 7105", "FAB 7106", "FAB 7107"]
+      },
+      "E-99M": {
+        fullName: "Embraer E-99M (Alerta Aéreo Antecipado)",
+        manufacturer: "Embraer Defesa & Segurança",
+        squadron: "2º/6º GAv — Esquadrão Guardião (Anápolis - GO)",
+        profile: "Médio Porte • Radar Dorsal / GPU Específica / Segurança",
+        tails: ["FAB 6700", "FAB 6701", "FAB 6702", "FAB 6703", "FAB 6704"]
+      },
+      "R-99": {
+        fullName: "Embraer R-99 (Sensoriamento Remoto)",
+        manufacturer: "Embraer Defesa & Segurança",
+        squadron: "2º/6º GAv — Esquadrão Guardião (Anápolis - GO)",
+        profile: "Médio Porte • Inteligência, Vigilância e Reconhecimento",
+        tails: ["FAB 6750", "FAB 6751", "FAB 6752"]
+      },
+      "R-35AM Learjet": {
+        fullName: "Learjet R-35AM (Reconhecimento)",
+        manufacturer: "Learjet",
+        squadron: "1º/6º GAv — Esquadrão Carcará (Anápolis - GO)",
+        profile: "Leve Porte • Aerolevantamento e Reconhecimento",
+        tails: ["FAB 6000", "FAB 6001", "FAB 6002", "FAB 6003", "FAB 6004", "FAB 6005"]
+      },
+      "ARP RQ-900 / RQ-1150": {
+        fullName: "Aeronaves Remotamente Pilotadas (RQ-900 / RQ-1150)",
+        manufacturer: "Elbit Systems",
+        squadron: "1º/12º GAv — Esquadrão Hórus (Santa Maria - RS)",
+        profile: "VANT / ARP • Área Isolada / Estação de Controle",
+        tails: ["FAB 7801", "FAB 7802", "FAB 7803", "FAB 7804", "FAB 7811", "FAB 7812"]
+      }
+    },
+
+    "Aviação de Caça & Ataque": {
+      "F-39E/F Gripen": {
+        fullName: "Saab F-39E / F-39F Gripen NG",
+        manufacturer: "Saab / Embraer",
+        squadron: "1º GDA — Esquadrão Jaguar (Anápolis - GO)",
+        profile: "Caça Supersônico • Escada Tática / FOD Rigoroso / Área Restrita",
+        tails: ["FAB 4100", "FAB 4101", "FAB 4102", "FAB 4103", "FAB 4104", "FAB 4105", "FAB 4106", "FAB 4107", "FAB 4108"]
+      },
+      "F-5EM/FM Tiger II": {
+        fullName: "Northrop F-5EM / F-5FM Tiger II",
+        manufacturer: "Northrop / Embraer",
+        squadron: "1º GAvCa (Santa Cruz) / 1º/14º GAv (Canoas) / 1º/4º GAv (Manaus)",
+        profile: "Caça Supersônico • Partida Pneumática / FOD Rigoroso",
+        tails: ["FAB 4806", "FAB 4812", "FAB 4820", "FAB 4831", "FAB 4844", "FAB 4856", "FAB 4862", "FAB 4875", "FAB 4880"]
+      },
+      "A-1AM/BM AMX": {
+        fullName: "AMX International A-1AM / A-1BM",
+        manufacturer: "Embraer / Alenia / Aermacchi",
+        squadron: "1º/10º GAv (Poker) / 3º/10º GAv (Centauro) — Santa Maria",
+        profile: "Ataque Subsônico • Apoio de Linha de Voo / FOD",
+        tails: ["FAB 5505", "FAB 5512", "FAB 5520", "FAB 5531", "FAB 5540", "FAB 5652", "FAB 5655"]
+      },
+      "A-29A/B Super Tucano": {
+        fullName: "Embraer A-29A / A-29B Super Tucano",
+        manufacturer: "Embraer Defesa & Segurança",
+        squadron: "1º/3º GAv (Boa Vista) / 2º/3º GAv (Porto Velho) / 3º/3º GAv (Campo Grande) / EDA",
+        profile: "Turboélice Leve • Defesa Aérea / Instrução Avançada",
+        tails: ["FAB 5701", "FAB 5710", "FAB 5722", "FAB 5735", "FAB 5748", "FAB 5901", "FAB 5915", "FAB 5928", "FAB 5940", "FAB 5955"]
+      }
+    },
+
+    "Instrução & Treinamento": {
+      "T-27M Tucano": {
+        fullName: "Embraer T-27M Tucano Modernizado",
+        manufacturer: "Embraer",
+        squadron: "1º EIA — Academia da Força Aérea (Pirassununga - SP)",
+        profile: "Instrução Avançada • Navegação / Apoio em Rota",
+        tails: ["FAB 1305", "FAB 1320", "FAB 1345", "FAB 1368", "FAB 1390", "FAB 1412", "FAB 1435", "FAB 1450"]
+      },
+      "T-25M Universal": {
+        fullName: "Neiva T-25M Universal Modernizado",
+        manufacturer: "Indústria Aeronáutica Neiva",
+        squadron: "2º EIA — Academia da Força Aérea (Pirassununga - SP)",
+        profile: "Instrução Primária • AVGAS / Apoio Leve",
+        tails: ["FAB 1835", "FAB 1850", "FAB 1872", "FAB 1895", "FAB 1910", "FAB 1932", "FAB 1955"]
+      },
+      "IU-50 Legacy 500": {
+        fullName: "Embraer IU-50 (Legacy 500 Inspeção em Voo)",
+        manufacturer: "Embraer",
+        squadron: "GEIV — Grupo Especial de Inspeção em Voo (Galeão - RJ)",
+        profile: "Calibração de Auxílios • Calços / GPU / Hangar GEIV",
+        tails: ["FAB 3601", "FAB 3602", "FAB 3603", "FAB 3604", "FAB 3605", "FAB 3606"]
+      },
+      "IU-93A Hawker 800XP": {
+        fullName: "Beechcraft IU-93A (Hawker 800XP GEIV)",
+        manufacturer: "Raytheon / Beechcraft",
+        squadron: "GEIV — Grupo Especial de Inspeção em Voo (Galeão - RJ)",
+        profile: "Calibração de Auxílios • Apoio Técnico Especializado",
+        tails: ["FAB 6050", "FAB 6051", "FAB 6052", "FAB 6053"]
+      }
+    },
+
+    "Asas Rotativas (Helicópteros)": {
+      "H-36 Caracal": {
+        fullName: "Airbus Helicopters H-36 Caracal (H225M)",
+        manufacturer: "Helibras / Airbus Helicopters",
+        squadron: "1º/8º GAv (Natal) / 3º/8º GAv (Santa Cruz) / 1º/11º GAv",
+        profile: "Helicóptero Pesado • Área Livre de Rotores / QAV-1",
+        tails: ["FAB 8510", "FAB 8511", "FAB 8512", "FAB 8513", "FAB 8514", "FAB 8515", "FAB 8516", "FAB 8517", "FAB 8518", "FAB 8519", "FAB 8520"]
+      },
+      "H-60L Black Hawk": {
+        fullName: "Sikorsky H-60L Black Hawk (S-70A)",
+        manufacturer: "Sikorsky Aircraft",
+        squadron: "5º/8º GAv (Santa Maria) / 7º/8º GAv (Manaus)",
+        profile: "Helicóptero Médio • Operações Táticas / SAR",
+        tails: ["FAB 8901", "FAB 8902", "FAB 8903", "FAB 8904", "FAB 8905", "FAB 8906", "FAB 8907", "FAB 8908", "FAB 8909", "FAB 8910", "FAB 8911", "FAB 8912", "FAB 8913", "FAB 8914", "FAB 8915", "FAB 8916"]
+      },
+      "H-50 Esquilo": {
+        fullName: "Helibras H-50 Esquilo (HB-350)",
+        manufacturer: "Helibras",
+        squadron: "1º/11º GAv — Esquadrão Gavião (Parnamirim - RN)",
+        profile: "Helicóptero Leve • Instrução e Ligação",
+        tails: ["FAB 8750", "FAB 8755", "FAB 8762", "FAB 8770", "FAB 8781", "FAB 8790"]
+      }
+    },
+
+    "Aeronave Visitante / Outra Força": {
+      "Aeronave Militar Estrangeira / Outra Força / Civil": {
+        fullName: "Aeronave Militar Estrangeira, Interforças (MB/EB) ou Civil Oficial",
+        manufacturer: "Força Estrangeira / Aviação Naval / Aviação do Exército / Civil",
+        squadron: "Missão Diplomática / Operação Conjunta / Órgão Governamental",
+        profile: "Visitante • Alfândega / Receita / Segurança / Apoio Interforças",
+        tails: ["USAF 001", "FACH 985", "RAF ZZ330", "N-1001", "EB-1001", "PR-FAB", "PT-GOV"]
+      }
+    }
+  };
+
+  // =========================================================================
+  // 2. ESTRUTURA DO CHECKLIST COLABORATIVO (8 SETORES ORIGINAIS)
+  // =========================================================================
+  const checklist = {
+    "Operações": {
+      icon: "fa-tower-control",
+      items: [
+        "Acompanhamento do voo iniciado",
+        "Horário previsto confirmado",
+        "Local de atendimento definido",
+        "Órgãos envolvidos acionados"
+      ]
+    },
+    "Pátio": {
+      icon: "fa-road",
+      items: [
+        "Vaga liberada",
+        "Coneamento realizado",
+        "Equipamentos posicionados",
+        "Área segura"
+      ]
+    },
+    "Combustível": {
+      icon: "fa-gas-pump",
+      items: [
+        "Caminhão acionado previamente",
+        "Caminhão no local",
+        "Abastecimento iniciado",
+        "Abastecimento concluído"
+      ]
+    },
+    "CTLA / Carga": {
+      icon: "fa-boxes-stacked",
+      items: [
+        "CTLA acionado",
+        "Equipamentos de carga disponíveis",
+        "Carga desembarcada",
+        "Carga embarcada",
+        "Documentação conferida"
+      ]
+    },
+    "Passageiros": {
+      icon: "fa-people-group",
+      items: [
+        "Check-in iniciado",
+        "Identificação conferida",
+        "Bagagens pesadas",
+        "Inspeção RX/faro realizada",
+        "Embarque concluído"
+      ]
+    },
+    "Limpeza QTU/QTA": {
+      icon: "fa-broom",
+      items: [
+        "Equipe acionada",
+        "Limpeza iniciada",
+        "Limpeza concluída"
+      ]
+    },
+    "Segurança": {
+      icon: "fa-shield-halved",
+      items: [
+        "Controle de acesso estabelecido",
+        "FOD check realizado",
+        "Autoridades recepcionadas se aplicável"
+      ]
+    },
+    "Preparação para partida": {
+      icon: "fa-plane-up",
+      items: [
+        "Documentação entregue",
+        "Equipamentos retirados",
+        "Calços retirados",
+        "Área liberada",
+        "Aeronave pronta"
+      ]
+    }
+  };
+
+  const SECTOR_NAMES = Object.keys(checklist);
+
+  // =========================================================================
+  // 3. PERFIS PRÉ-DEFINIDOS E CONTROLE DE ACESSO (LOCALSTORAGE + FALLBACK)
+  // =========================================================================
+  const PRESET_OPERATORS = [
+    { rank: "Cap Av", name: "SILVA", saram: "4128901", sector: "Operações", pin: "bagl2026" },
+    { rank: "2S BMA", name: "COSTA", saram: "6234118", sector: "Pátio", pin: "bagl2026" },
+    { rank: "3S SAD", name: "SANTOS", saram: "7190442", sector: "Passageiros", pin: "bagl2026" },
+    { rank: "Cb BMA", name: "OLIVEIRA", saram: "7548210", sector: "Combustível", pin: "bagl2026" }
+  ];
+
+  const STORAGE_SESSION_KEY = "scgt_bagl_active_session_v5";
+  const STORAGE_USERS_KEY = "scgt_bagl_registered_users_v5";
+  const DEFAULT_PIN = "bagl2026";
+
+  // Fallback em memória caso localStorage esteja bloqueado pelo ambiente
+  let memorySession = null;
+  let memoryUsers = [];
+
+  let state = {};
+  let startedAt = null;
+  let completedAt = null;
+  let autoPdfTriggered = false;
+  let currentFilter = "todos";
+  let logEntries = [];
+  let currentUser = null;
+  let quickMatchesCache = [];
+
+  function safeStorageGet(key, fallback) {
+    try {
+      const val = localStorage.getItem(key);
+      return val !== null ? val : fallback;
+    } catch (e) {
+      if (key === STORAGE_SESSION_KEY) return memorySession;
+      if (key === STORAGE_USERS_KEY) return JSON.stringify(memoryUsers);
+      return fallback;
+    }
+  }
+
+  function safeStorageSet(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      if (key === STORAGE_SESSION_KEY) memorySession = value;
+      if (key === STORAGE_USERS_KEY) {
+        try { memoryUsers = JSON.parse(value); } catch (err) {}
+      }
+    }
+  }
+
+  function safeStorageRemove(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      if (key === STORAGE_SESSION_KEY) memorySession = null;
+    }
+  }
+
+  function switchAuthTab(tab) {
+    const loginForm = document.getElementById("login-form");
+    const registerForm = document.getElementById("register-form");
+    const loginBtn = document.getElementById("tab-login-btn");
+    const registerBtn = document.getElementById("tab-register-btn");
+    hideAuthError();
+
+    if (tab === "login") {
+      loginForm.classList.remove("hidden");
+      registerForm.classList.add("hidden");
+      loginBtn.className = "py-2.5 text-xs sm:text-sm font-bold tracking-wider uppercase rounded-lg bg-[#111c30] text-[#38bdf8] border border-sky-400/30 shadow-sm transition cursor-pointer flex items-center justify-center gap-2";
+      registerBtn.className = "py-2.5 text-xs sm:text-sm font-bold tracking-wider uppercase rounded-lg text-[#94a3b8] hover:text-[#f1f5f9] transition cursor-pointer flex items-center justify-center gap-2";
+    } else {
+      loginForm.classList.add("hidden");
+      registerForm.classList.remove("hidden");
+      registerBtn.className = "py-2.5 text-xs sm:text-sm font-bold tracking-wider uppercase rounded-lg bg-[#111c30] text-[#38bdf8] border border-sky-400/30 shadow-sm transition cursor-pointer flex items-center justify-center gap-2";
+      loginBtn.className = "py-2.5 text-xs sm:text-sm font-bold tracking-wider uppercase rounded-lg text-[#94a3b8] hover:text-[#f1f5f9] transition cursor-pointer flex items-center justify-center gap-2";
+    }
+  }
+
+  function togglePinVisibility(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (!input || !icon) return;
+    if (input.type === "password") {
+      input.type = "text";
+      icon.classList.remove("fa-eye");
+      icon.classList.add("fa-eye-slash");
+    } else {
+      input.type = "password";
+      icon.classList.remove("fa-eye-slash");
+      icon.classList.add("fa-eye");
+    }
+  }
+
+  function showAuthError(msg) {
+    const box = document.getElementById("auth-error");
+    document.getElementById("auth-error-msg").textContent = msg;
+    box.classList.remove("hidden");
+  }
+
+  function hideAuthError() {
+    document.getElementById("auth-error").classList.add("hidden");
+  }
+
+  function getSavedUsers() {
+    try {
+      return JSON.parse(safeStorageGet(STORAGE_USERS_KEY, "[]"));
+    } catch (e) {
+      return memoryUsers;
+    }
+  }
+
+  function getAllKnownOperators() {
+    const saved = getSavedUsers();
+    const map = new Map();
+    PRESET_OPERATORS.forEach(op => map.set(op.saram, op));
+    saved.forEach(op => map.set(op.saram, op));
+    return Array.from(map.values());
+  }
+
+  function handleLoginSubmit(event) {
+    event.preventDefault();
+    hideAuthError();
+
+    const identifierRaw = document.getElementById("login-identifier").value.trim().toUpperCase();
+    const selectedSector = document.getElementById("login-sector").value;
+    const pin = document.getElementById("login-pin").value.trim();
+
+    if (!identifierRaw) {
+      showAuthError("Informe o SARAM (7 dígitos) ou Nome de Guerra.");
+      return;
+    }
+
+    const digitsOnly = identifierRaw.replace(/\D/g, "");
+    const isSaramSearch = digitsOnly.length > 0 && digitsOnly.length === identifierRaw.replace(/\s/g, "").length;
+
+    if (isSaramSearch && digitsOnly.length !== 7) {
+      showAuthError("O SARAM deve conter exatamente 7 dígitos numéricos.");
+      return;
+    }
+
+    const knownOperators = getAllKnownOperators();
+    const matchedOp = knownOperators.find(op =>
+      (isSaramSearch && op.saram === digitsOnly) ||
+      (!isSaramSearch && (op.name.toUpperCase() === identifierRaw || `${op.rank} ${op.name}`.toUpperCase() === identifierRaw))
+    );
+
+    const validPin = matchedOp
+      ? (pin === matchedOp.pin || pin === DEFAULT_PIN)
+      : (pin === DEFAULT_PIN);
+
+    if (!validPin) {
+      showAuthError("Senha / PIN Operacional inválido. Use o PIN cadastrado ou o PIN padrão do turno (bagl2026).");
+      return;
+    }
+
+    if (matchedOp) {
+      const finalSector = selectedSector === "AUTO" ? matchedOp.sector : selectedSector;
+      completeLogin({
+        rank: matchedOp.rank,
+        name: matchedOp.name,
+        saram: matchedOp.saram,
+        sector: finalSector
+      });
+    } else {
+      const finalSector = selectedSector === "AUTO" ? "Operações" : selectedSector;
+      completeLogin({
+        rank: isSaramSearch ? "Mil" : "Op",
+        name: isSaramSearch ? `SARAM ${digitsOnly}` : identifierRaw,
+        saram: isSaramSearch ? digitsOnly : "0000000",
+        sector: finalSector
+      });
+    }
+  }
+
+  function handleRegisterSubmit(event) {
+    event.preventDefault();
+    hideAuthError();
+
+    const rank = document.getElementById("reg-rank").value;
+    const name = document.getElementById("reg-name").value.trim().toUpperCase();
+    const saram = document.getElementById("reg-saram").value.replace(/\D/g, "");
+    const sector = document.getElementById("reg-sector").value;
+    const pin = document.getElementById("reg-pin").value.trim();
+
+    if (!name) {
+      showAuthError("Informe o Nome de Guerra.");
+      return;
+    }
+    if (saram.length !== 7) {
+      showAuthError("O SARAM deve conter exatamente 7 dígitos numéricos.");
+      return;
+    }
+    if (pin.length < 4) {
+      showAuthError("O PIN pessoal deve conter no mínimo 4 caracteres.");
+      return;
+    }
+
+    const savedUsers = getSavedUsers().filter(u => u.saram !== saram);
+    savedUsers.push({ rank, name, saram, sector, pin });
+    memoryUsers = savedUsers;
+    safeStorageSet(STORAGE_USERS_KEY, JSON.stringify(savedUsers));
+
+    completeLogin({ rank, name, saram, sector });
+    showToast(`Operador ${rank} ${name} cadastrado e autenticado!`);
+  }
+
+  function completeLogin(userObj) {
+    const isSwitch = Boolean(currentUser);
+    currentUser = userObj;
+    safeStorageSet(STORAGE_SESSION_KEY, JSON.stringify(userObj));
+
+    document.getElementById("login-screen").classList.add("hidden");
+
+    const badge = document.getElementById("operator-badge");
+    badge.classList.remove("hidden");
+    document.getElementById("badge-op-name").textContent = `${userObj.rank} ${userObj.name}`;
+    document.getElementById("badge-op-saram").textContent = `SARAM ${userObj.saram}`;
+    document.getElementById("badge-op-sector").textContent = userObj.sector;
+
+    const respInput = document.getElementById("resp");
+    if (!respInput.value.trim() || isSwitch) {
+      respInput.value = `${userObj.rank} ${userObj.name}`;
+    }
+
+    const mySectorBtn = document.getElementById("filter-meu-setor");
+    if (checklist[userObj.sector]) {
+      mySectorBtn.classList.remove("hidden");
+    } else {
+      mySectorBtn.classList.add("hidden");
+      if (currentFilter === "meu-setor") {
+        currentFilter = "todos";
+      }
+    }
+
+    logEvent("Controle de Acesso", isSwitch ? "Troca de Operador" : "Login Operacional", `Autenticado (${userObj.sector})`);
+    render();
+    showToast(`Sessão ativa: ${userObj.rank} ${userObj.name}`);
+  }
+
+  function openSwitchOperator() {
+    switchAuthTab("login");
+    if (currentUser) {
+      document.getElementById("login-identifier").value = currentUser.saram !== "0000000" ? currentUser.saram : currentUser.name;
+      document.getElementById("login-sector").value = currentUser.sector;
+      document.getElementById("login-pin").value = "";
+    }
+    document.getElementById("login-screen").classList.remove("hidden");
+  }
+
+  function logoutOperator() {
+    if (currentUser) {
+      logEvent("Controle de Acesso", "Logout Operacional", "Sessão encerrada pelo operador");
+    }
+    currentUser = null;
+    safeStorageRemove(STORAGE_SESSION_KEY);
+
+    document.getElementById("operator-badge").classList.add("hidden");
+    document.getElementById("login-pin").value = "";
+    switchAuthTab("login");
+    document.getElementById("login-screen").classList.remove("hidden");
+  }
+
+  function restoreSession() {
+    try {
+      const raw = safeStorageGet(STORAGE_SESSION_KEY, null);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.rank && parsed.name && parsed.saram && parsed.sector) {
+          completeLogin(parsed);
+          return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  // =========================================================================
+  // 4. SELEÇÃO EM CASCATA DE 3 NÍVEIS E BUSCA RÁPIDA DE MATRÍCULAS FAB
+  // =========================================================================
+  function initCategorySelect() {
+    const catSelect = document.getElementById("ac-category");
+    catSelect.innerHTML = "";
+    Object.keys(fabFleetCatalog).forEach((cat, idx) => {
+      const opt = document.createElement("option");
+      opt.value = cat;
+      opt.textContent = `${idx + 1}. ${cat}`;
+      catSelect.appendChild(opt);
+    });
+    onCategoryChange();
+  }
+
+  function onCategoryChange() {
+    const category = document.getElementById("ac-category").value;
+    const modelSelect = document.getElementById("aircraft");
+    const modelsObj = fabFleetCatalog[category] || {};
+
+    modelSelect.innerHTML = "";
+    Object.keys(modelsObj).forEach(modelKey => {
+      const opt = document.createElement("option");
+      opt.value = modelKey;
+      opt.textContent = modelKey;
+      modelSelect.appendChild(opt);
+    });
+    onModelChange();
+  }
+
+  function onModelChange() {
+    const category = document.getElementById("ac-category").value;
+    const modelKey = document.getElementById("aircraft").value;
+    const modelData = fabFleetCatalog[category] ? fabFleetCatalog[category][modelKey] : null;
+    const tailSelect = document.getElementById("tail-select");
+    const tailCustom = document.getElementById("tail-custom");
+
+    tailSelect.innerHTML = "";
+    if (modelData && Array.isArray(modelData.tails)) {
+      modelData.tails.forEach(tail => {
+        const opt = document.createElement("option");
+        opt.value = tail;
+        opt.textContent = tail;
+        tailSelect.appendChild(opt);
+      });
+    }
+
+    const customOpt = document.createElement("option");
+    customOpt.value = "OUTRA";
+    customOpt.textContent = "Outra / Digitar manualmente...";
+    tailSelect.appendChild(customOpt);
+
+    tailCustom.classList.add("hidden");
+    tailCustom.value = "";
+
+    if (modelData) {
+      document.getElementById("info-full-name").textContent = modelData.fullName;
+      document.getElementById("info-manufacturer").textContent = modelData.manufacturer;
+      document.getElementById("info-squadron").textContent = modelData.squadron;
+      document.getElementById("info-profile").textContent = modelData.profile;
+    }
+  }
+
+  function handleTailSelect() {
+    const tailSelect = document.getElementById("tail-select");
+    const tailCustom = document.getElementById("tail-custom");
+    if (tailSelect.value === "OUTRA") {
+      tailCustom.classList.remove("hidden");
+      tailCustom.focus();
+    } else {
+      tailCustom.classList.add("hidden");
+    }
+  }
+
+  function getSelectedAircraft() {
+    return document.getElementById("aircraft").value || "Aeronave";
+  }
+
+  function getSelectedTail() {
+    const tailSelect = document.getElementById("tail-select").value;
+    if (tailSelect === "OUTRA") {
+      const customVal = document.getElementById("tail-custom").value.trim().toUpperCase();
+      return customVal || "N/D";
+    }
+    return tailSelect || "N/D";
+  }
+
+  function handleQuickTailSearch(query) {
+    const clean = query.trim().toUpperCase();
+    const resultsBox = document.getElementById("quick-search-results");
+    const clearBtn = document.getElementById("clear-quick-search");
+
+    if (!clean) {
+      resultsBox.classList.add("hidden");
+      clearBtn.classList.add("hidden");
+      quickMatchesCache = [];
+      return;
+    }
+    clearBtn.classList.remove("hidden");
+
+    const matches = [];
+    for (const category in fabFleetCatalog) {
+      for (const model in fabFleetCatalog[category]) {
+        const data = fabFleetCatalog[category][model];
+        data.tails.forEach(tail => {
+          const compactTail = tail.replace(/\s+/g, "");
+          const compactQuery = clean.replace(/\s+/g, "");
+          if (tail.toUpperCase().includes(clean) || compactTail.includes(compactQuery) || model.toUpperCase().includes(clean)) {
+            matches.push({ category, model, tail });
+          }
+        });
+      }
+    }
+
+    quickMatchesCache = matches.slice(0, 15);
+
+    if (quickMatchesCache.length === 0) {
+      resultsBox.innerHTML = `<div class="p-3 text-xs text-slate-500 text-center">Nenhuma matrícula encontrada para "${clean.replace(/</g, "&lt;")}".</div>`;
+      resultsBox.classList.remove("hidden");
+      return;
+    }
+
+    resultsBox.innerHTML = quickMatchesCache.map((m, idx) => `
+      <button type="button" data-match-idx="${idx}" class="quick-match-item w-full text-left px-3 py-2.5 hover:bg-[#111c30] transition flex items-center justify-between gap-2 cursor-pointer">
+        <div>
+          <div class="text-xs font-extrabold font-mono text-[#38bdf8]">${m.tail} <span class="font-sans font-bold text-[#f1f5f9]">• ${m.model}</span></div>
+          <div class="text-[11px] text-[#94a3b8]">${m.category}</div>
+        </div>
+        <i class="fa-solid fa-arrow-turn-down text-[#38bdf8] text-xs"></i>
+      </button>
+    `).join("");
+    resultsBox.classList.remove("hidden");
+  }
+
+  function selectFromQuickSearch(category, model, tail) {
+    document.getElementById("ac-category").value = category;
+    onCategoryChange();
+    document.getElementById("aircraft").value = model;
+    onModelChange();
+    document.getElementById("tail-select").value = tail;
+    handleTailSelect();
+    clearQuickSearch();
+    showToast(`Aeronave selecionada: ${model} (${tail})`);
+  }
+
+  function clearQuickSearch() {
+    document.getElementById("quick-tail-search").value = "";
+    document.getElementById("quick-search-results").classList.add("hidden");
+    document.getElementById("clear-quick-search").classList.add("hidden");
+    quickMatchesCache = [];
+  }
+
+  // =========================================================================
+  // 5. CHECKLIST COLABORATIVO, PARADA AUTOMÁTICA E AUDITORIA
+  // =========================================================================
+  function getTimeNow() {
+    return new Date().toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
+  }
+
+  function getZuluTimeNow() {
+    const now = new Date();
+    const h = String(now.getUTCHours()).padStart(2, "0");
+    const m = String(now.getUTCMinutes()).padStart(2, "0");
+    const s = String(now.getUTCSeconds()).padStart(2, "0");
+    return `${h}:${m}:${s}Z`;
+  }
+
+  function getShortTimeNow() {
+    return new Date().toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
+  function getActiveOperatorShort() {
+    if (!currentUser) return "Operador";
+    return `${currentUser.rank} ${currentUser.name}`;
+  }
+
+  function initEmptyState() {
+    state = {};
+    for (const sector in checklist) {
+      state[sector] = {};
+      checklist[sector].items.forEach(item => {
+        state[sector][item] = {
+          status: "pendente",
+          startedTime: null,
+          finishedTime: null,
+          operator: null
+        };
+      });
+    }
+  }
+
+  function startOperation() {
+    startedAt = new Date();
+    completedAt = null;
+    autoPdfTriggered = false;
+    initEmptyState();
+
+    const ac = getSelectedAircraft();
+    const tail = getSelectedTail();
+    const place = document.getElementById("place").value;
+
+    document.getElementById("completion-banner").classList.add("hidden");
+    document.getElementById("status").textContent = "Em andamento";
+    document.getElementById("status").className = "text-xl sm:text-2xl font-extrabold text-[#f59e0b] mt-2";
+    document.getElementById("status-sub").textContent = `${ac} (${tail}) • ${place}`;
+    document.getElementById("ground-sub").textContent = `Início: ${getShortTimeNow()}`;
+
+    const groundPill = document.getElementById("ground-status-pill");
+    groundPill.className = "inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-[#f59e0b] border border-amber-400/30";
+    groundPill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-ping"></span> EM CURSO`;
+
+    const opBadge = document.getElementById("operation-badge");
+    opBadge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-amber-500/15 text-[#f59e0b] border border-amber-400/35 w-fit";
+    opBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-[#f59e0b] animate-ping"></span> ATIVA: ${ac} (${tail})`;
+
+    logEvent("Sistema", `Operação ${ac} (${tail})`, `Iniciada em ${place}`);
+    render();
+    showToast(`Operação iniciada para ${ac} (${tail})`);
+  }
+
+  function setItemStatus(sector, item, newStatus) {
+    if (!state[sector] || !state[sector][item]) return;
+
+    if (!startedAt) {
+      startOperation();
+    }
+
+    const itemObj = state[sector][item];
+    const shortTime = getShortTimeNow();
+    const opName = getActiveOperatorShort();
+    let actionLabel = "";
+
+    if (newStatus === "andamento") {
+      itemObj.status = "andamento";
+      if (!itemObj.startedTime) itemObj.startedTime = shortTime;
+      itemObj.finishedTime = null;
+      itemObj.operator = opName;
+      actionLabel = "Iniciado";
+    } else if (newStatus === "concluido") {
+      itemObj.status = "concluido";
+      if (!itemObj.startedTime) itemObj.startedTime = shortTime;
+      itemObj.finishedTime = shortTime;
+      itemObj.operator = opName;
+      actionLabel = "Concluído";
+    } else if (newStatus === "na") {
+      itemObj.status = "na";
+      itemObj.startedTime = null;
+      itemObj.finishedTime = shortTime;
+      itemObj.operator = opName;
+      actionLabel = "Marcado como N/A";
+    } else if (newStatus === "pendente") {
+      itemObj.status = "pendente";
+      itemObj.startedTime = null;
+      itemObj.finishedTime = null;
+      itemObj.operator = null;
+      actionLabel = "Desfeito (Pendente)";
+    }
+
+    logEvent(sector, item, actionLabel);
+    render();
+  }
+
+  function logEvent(sector, item, action) {
+    const time = getTimeNow();
+    const operatorFull = currentUser
+      ? `${currentUser.rank} ${currentUser.name} (${currentUser.sector})`
+      : "Sistema (Não autenticado)";
+
+    logEntries.unshift({ time, sector, item, action, operatorFull });
+
+    const tbody = document.querySelector("#log tbody");
+    const emptyRow = document.getElementById("empty-log-row");
+    if (emptyRow) emptyRow.remove();
+
+    let badgeColor = "bg-slate-800 text-slate-300 border border-slate-700";
+    if (action.includes("Concluído") || action.includes("concluído")) {
+      badgeColor = "bg-emerald-500/15 text-[#22c55e] border border-emerald-400/30";
+    } else if (action.includes("Iniciado") || action.includes("Iniciada")) {
+      badgeColor = "bg-amber-500/15 text-[#f59e0b] border border-amber-400/30";
+    } else if (action.includes("N/A")) {
+      badgeColor = "bg-indigo-500/15 text-[#818cf8] border border-indigo-400/30";
+    } else if (action.includes("Desfeito")) {
+      badgeColor = "bg-red-500/15 text-[#ef4444] border border-red-400/30";
+    } else if (action.includes("Autenticado") || action.includes("encerrada")) {
+      badgeColor = "bg-sky-500/15 text-[#38bdf8] border border-sky-400/30";
+    }
+
+    const tr = document.createElement("tr");
+    tr.className = "hover:bg-[#111c30] transition";
+    tr.innerHTML = `
+      <td class="py-2.5 px-3 font-mono text-xs text-[#38bdf8] whitespace-nowrap">${time}</td>
+      <td class="py-2.5 px-3 font-semibold text-[#f1f5f9]">${sector}</td>
+      <td class="py-2.5 px-3 text-[#94a3b8]">${item}</td>
+      <td class="py-2.5 px-3 whitespace-nowrap"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${badgeColor}">${action}</span></td>
+      <td class="py-2.5 px-3 text-xs font-semibold text-[#f1f5f9] whitespace-nowrap">${operatorFull}</td>
+    `;
+    tbody.prepend(tr);
+    document.getElementById("log-count").textContent = `${logEntries.length} ${logEntries.length === 1 ? "registro" : "registros"}`;
+  }
+
+  function setFilter(filterName) {
+    currentFilter = filterName;
+    document.querySelectorAll(".filter-btn").forEach(btn => {
+      btn.classList.remove("bg-blue-600", "text-white", "shadow-sm");
+      btn.classList.add("text-[#94a3b8]", "hover:text-white");
+    });
+    const activeBtn = document.getElementById(`filter-${filterName}`);
+    if (activeBtn) {
+      activeBtn.classList.remove("text-[#94a3b8]", "hover:text-white");
+      activeBtn.classList.add("bg-blue-600", "text-white", "shadow-sm");
+    }
+    render();
+  }
+
+  function render() {
+    const container = document.getElementById("sectors");
+    const searchQuery = (document.getElementById("search-checklist").value || "").trim().toLowerCase();
+    container.innerHTML = "";
+
+    let totalApplicable = 0;
+    let totalDone = 0;
+    let nextPending = "--";
+    let renderedCount = 0;
+    const userSector = currentUser ? currentUser.sector : null;
+
+    SECTOR_NAMES.forEach((sector, sIdx) => {
+      const sectorData = checklist[sector];
+      const items = sectorData.items;
+      const isMySector = userSector === sector;
+
+      let sectorApplicable = 0;
+      let sectorDone = 0;
+      let sectorRunning = 0;
+
+      items.forEach(item => {
+        const st = state[sector] && state[sector][item] ? state[sector][item].status : "pendente";
+        if (st !== "na") {
+          sectorApplicable++;
+          totalApplicable++;
+          if (st === "concluido") {
+            sectorDone++;
+            totalDone++;
+          } else {
+            if (st === "andamento") sectorRunning++;
+            if (nextPending === "--") {
+              nextPending = `${sector}: ${item}`;
+            }
+          }
+        }
+      });
+
+      const sectorPct = sectorApplicable === 0 ? 100 : Math.round((sectorDone / sectorApplicable) * 100);
+      const isSectorComplete = sectorPct === 100;
+
+      if (currentFilter === "meu-setor" && !isMySector) return;
+      if (currentFilter === "pendentes" && isSectorComplete) return;
+      if (currentFilter === "concluidos" && !isSectorComplete) return;
+
+      const sectorMatch = sector.toLowerCase().includes(searchQuery);
+      const visibleItemsWithIdx = items
+        .map((it, iIdx) => ({ item: it, iIdx }))
+        .filter(obj => sectorMatch || obj.item.toLowerCase().includes(searchQuery));
+
+      if (searchQuery && visibleItemsWithIdx.length === 0) return;
+
+      renderedCount++;
+
+      let statusBadge = `<span class="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-red-500/15 text-[#ef4444] border border-red-400/35">PENDENTE</span>`;
+      let barColor = "bg-[#ef4444]";
+      if (isSectorComplete) {
+        statusBadge = `<span class="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-[#22c55e] border border-emerald-400/35"><i class="fa-solid fa-check mr-1"></i>CONCLUÍDO</span>`;
+        barColor = "bg-[#22c55e]";
+      } else if (sectorDone > 0 || sectorRunning > 0) {
+        statusBadge = `<span class="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-[#f59e0b] border border-amber-400/35">EM CURSO</span>`;
+        barColor = "bg-[#f59e0b]";
+      }
+
+      const card = document.createElement("div");
+      card.className = isMySector
+        ? "rounded-xl border-2 border-[#38bdf8] bg-[#0a1628] p-4 flex flex-col justify-between shadow-[0_0_24px_rgba(56,189,248,0.16)] transition"
+        : "rounded-xl border border-[#1e2d45] bg-[#070d17] p-4 flex flex-col justify-between hover:border-slate-700 transition";
+
+      const mySectorPill = isMySector
+        ? `<span class="inline-flex items-center gap-1 text-[10px] font-mono font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/20 text-[#38bdf8] border border-sky-400/40"><i class="fa-solid fa-star text-[#f59e0b] text-[9px]"></i> SEU SETOR</span>`
+        : "";
+
+      let html = `
+        <div>
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg ${isMySector ? "bg-sky-500/20 border-sky-400/40 text-[#38bdf8]" : "bg-[#111c30] border-[#1e2d45] text-[#38bdf8]"} border flex items-center justify-center text-sm shrink-0">
+                <i class="fa-solid ${sectorData.icon}"></i>
+              </div>
+              <div>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <h3 class="font-bold text-[#f1f5f9] text-sm sm:text-base leading-tight">${sector}</h3>
+                  ${mySectorPill}
+                </div>
+                <span class="text-xs font-mono text-[#94a3b8]">${sectorDone}/${sectorApplicable} etapas (${sectorPct}%)</span>
+              </div>
+            </div>
+            ${statusBadge}
+          </div>
+
+          <div class="w-full h-1.5 bg-[#111c30] rounded-full overflow-hidden mb-3 border border-[#1e2d45]">
+            <div class="h-full ${barColor} transition-all duration-300" style="width: ${sectorPct}%"></div>
+          </div>
+
+          <div class="space-y-2">
+      `;
+
+      visibleItemsWithIdx.forEach(({ item, iIdx }) => {
+        const itemState = state[sector] && state[sector][item]
+          ? state[sector][item]
+          : { status: "pendente", startedTime: null, finishedTime: null, operator: null };
+        const st = itemState.status;
+
+        let rowStyle = "bg-[#0d1626] border-[#1e2d45]";
+        let dotStyle = "bg-[#ef4444] shadow-[0_0_8px_rgba(239,68,68,0.6)]";
+        let textStyle = "text-[#f1f5f9] font-medium";
+        let metaBadge = "";
+        const opStr = itemState.operator ? ` por ${itemState.operator}` : "";
+
+        if (st === "andamento") {
+          rowStyle = "bg-amber-950/35 border-[#f59e0b]/45";
+          dotStyle = "bg-[#f59e0b] animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.7)]";
+          textStyle = "text-amber-200 font-semibold";
+          if (itemState.startedTime) {
+            metaBadge = `<span class="text-[11px] font-mono text-[#f59e0b] bg-amber-500/15 border border-amber-400/30 px-1.5 py-0.5 rounded">Iniciado${opStr} às ${itemState.startedTime}</span>`;
+          }
+        } else if (st === "concluido") {
+          rowStyle = "bg-emerald-950/30 border-[#22c55e]/40";
+          dotStyle = "bg-[#22c55e] shadow-[0_0_8px_rgba(34,197,94,0.6)]";
+          textStyle = "text-slate-400 line-through";
+          const tRange = itemState.startedTime && itemState.startedTime !== itemState.finishedTime
+            ? `${itemState.startedTime} → ${itemState.finishedTime}`
+            : `${itemState.finishedTime}`;
+          metaBadge = `<span class="text-[11px] font-mono text-[#22c55e] bg-emerald-500/15 border border-emerald-400/30 px-1.5 py-0.5 rounded"><i class="fa-solid fa-check text-[10px] mr-0.5"></i>Concluído${opStr} (${tRange})</span>`;
+        } else if (st === "na") {
+          rowStyle = "bg-indigo-950/25 border-[#818cf8]/40 opacity-85";
+          dotStyle = "bg-[#818cf8] shadow-[0_0_8px_rgba(129,140,248,0.6)]";
+          textStyle = "text-indigo-200/70 italic line-through";
+          metaBadge = `<span class="text-[11px] font-mono font-semibold text-[#818cf8] bg-indigo-500/15 border border-indigo-400/30 px-1.5 py-0.5 rounded">N/A${opStr}${itemState.finishedTime ? ` às ${itemState.finishedTime}` : ""}</span>`;
+        }
+
+        html += `
+          <div class="rounded-lg border ${rowStyle} p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition">
+            <div class="flex items-start gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full ${dotStyle} mt-1.5 shrink-0"></span>
+              <div>
+                <div class="text-xs sm:text-sm ${textStyle} leading-snug">${item}</div>
+                ${metaBadge ? `<div class="mt-1">${metaBadge}</div>` : ""}
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-1 shrink-0 sm:ml-2">
+              <button type="button" data-sector-idx="${sIdx}" data-item-idx="${iIdx}" data-action="andamento" class="checklist-action-btn px-2 py-1 text-[11px] font-semibold rounded bg-amber-500/20 hover:bg-[#f59e0b] text-[#f59e0b] hover:text-slate-950 border border-amber-400/35 transition cursor-pointer">
+                Iniciar
+              </button>
+              <button type="button" data-sector-idx="${sIdx}" data-item-idx="${iIdx}" data-action="concluido" class="checklist-action-btn px-2 py-1 text-[11px] font-semibold rounded bg-emerald-500/20 hover:bg-[#22c55e] text-[#22c55e] hover:text-slate-950 border border-emerald-400/35 transition cursor-pointer">
+                Concluir
+              </button>
+              <button type="button" data-sector-idx="${sIdx}" data-item-idx="${iIdx}" data-action="na" class="checklist-action-btn px-2 py-1 text-[11px] font-semibold rounded bg-indigo-500/20 hover:bg-[#818cf8] text-[#818cf8] hover:text-slate-950 border border-indigo-400/35 transition cursor-pointer">
+                N/A
+              </button>
+              <button type="button" data-sector-idx="${sIdx}" data-item-idx="${iIdx}" data-action="pendente" class="checklist-action-btn px-2 py-1 text-[11px] font-semibold rounded bg-red-500/15 hover:bg-[#ef4444] text-[#ef4444] hover:text-white border border-red-400/35 transition cursor-pointer">
+                Desfazer
+              </button>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `</div></div>`;
+      card.innerHTML = html;
+      container.appendChild(card);
+    });
+
+    if (renderedCount === 0) {
+      container.innerHTML = `
+        <div class="col-span-full py-10 text-center text-[#94a3b8] bg-[#070d17] rounded-xl border border-dashed border-[#1e2d45]">
+          <i class="fa-solid fa-filter-circle-xmark text-2xl mb-2 text-sky-400/60"></i>
+          <p class="text-sm font-medium">Nenhum setor ou etapa corresponde ao filtro selecionado.</p>
+        </div>
+      `;
+    }
+
+    const globalPct = totalApplicable === 0 ? 100 : Math.round((totalDone / totalApplicable) * 100);
+    const isAllCompleted = Boolean(startedAt) && totalApplicable > 0 && totalDone === totalApplicable;
+
+    document.getElementById("percent").textContent = `${globalPct}%`;
+    document.getElementById("fraction").textContent = `${totalDone}/${totalApplicable} etapas`;
+    document.getElementById("bar").style.width = `${globalPct}%`;
+    document.getElementById("next").textContent = nextPending;
+
+    const ac = getSelectedAircraft();
+    const tail = getSelectedTail();
+    const place = document.getElementById("place").value;
+    const groundPill = document.getElementById("ground-status-pill");
+
+    if (isAllCompleted) {
+      const justFinished = !completedAt;
+      if (justFinished) {
+        completedAt = new Date();
+      }
+
+      updateTimers();
+      const finalGroundTime = document.getElementById("ground").textContent;
+      const startShort = startedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const endShort = completedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+      document.getElementById("status").textContent = "Concluída";
+      document.getElementById("status").className = "text-xl sm:text-2xl font-extrabold text-[#22c55e] mt-2";
+      document.getElementById("status-sub").textContent = "Aeronave pronta para partida";
+      document.getElementById("ground-sub").textContent = `Início: ${startShort} • Fim: ${endShort}`;
+
+      groundPill.className = "inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-[#22c55e] border border-emerald-400/35";
+      groundPill.innerHTML = `<i class="fa-solid fa-lock text-[#22c55e]"></i> TEMPO FINALIZADO`;
+
+      const opBadge = document.getElementById("operation-badge");
+      opBadge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-500/15 text-[#22c55e] border border-emerald-400/35 w-fit";
+      opBadge.innerHTML = `<i class="fa-solid fa-circle-check text-[#22c55e]"></i> CONCLUÍDA (100%)`;
+
+      const banner = document.getElementById("completion-banner");
+      banner.classList.remove("hidden");
+      document.getElementById("banner-ac-badge").textContent = `${ac} • ${tail}`;
+      document.getElementById("banner-summary-text").innerHTML = `Cronômetro parado em <strong class="font-mono text-white">${finalGroundTime}</strong> (${startShort} às ${endShort}) • Relatório PDF institucional gerado automaticamente.`;
+
+      if (justFinished) {
+        logEvent("Sistema", "Operação", `Turnaround concluído em ${finalGroundTime}`);
+        if (!autoPdfTriggered) {
+          autoPdfTriggered = true;
+          setTimeout(() => generateTurnaroundPDF(true), 350);
+        }
+      }
+    } else if (startedAt) {
+      if (completedAt) {
+        completedAt = null;
+        autoPdfTriggered = false;
+        document.getElementById("completion-banner").classList.add("hidden");
+        const startShort = startedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        document.getElementById("ground-sub").textContent = `Início: ${startShort}`;
+        logEvent("Sistema", "Operação", "Etapa reaberta — Cronômetro retomado");
+      }
+
+      document.getElementById("status").textContent = "Em andamento";
+      document.getElementById("status").className = "text-xl sm:text-2xl font-extrabold text-[#f59e0b] mt-2";
+      document.getElementById("status-sub").textContent = `${ac} (${tail}) • ${place}`;
+
+      groundPill.className = "inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-[#f59e0b] border border-amber-400/30";
+      groundPill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-[#f59e0b] animate-ping"></span> EM CURSO`;
+
+      const opBadge = document.getElementById("operation-badge");
+      opBadge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-amber-500/15 text-[#f59e0b] border border-amber-400/35 w-fit";
+      opBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-[#f59e0b] animate-ping"></span> ATIVA: ${ac} (${tail})`;
+    }
+  }
+
+  function updateTimers() {
+    document.getElementById("live-clock").textContent = getTimeNow();
+    const zuluEl = document.getElementById("zulu-clock");
+    if (zuluEl) zuluEl.textContent = getZuluTimeNow();
+
+    if (startedAt) {
+      const endRef = completedAt || new Date();
+      const diffSec = Math.max(0, Math.floor((endRef - startedAt) / 1000));
+      const hrs = String(Math.floor(diffSec / 3600)).padStart(2, "0");
+      const mins = String(Math.floor((diffSec % 3600) / 60)).padStart(2, "0");
+      const secs = String(diffSec % 60).padStart(2, "0");
+      document.getElementById("ground").textContent = `${hrs}:${mins}:${secs}`;
+    }
+  }
+
+  function resetAll() {
+    startedAt = null;
+    completedAt = null;
+    autoPdfTriggered = false;
+    logEntries = [];
+    initEmptyState();
+
+    document.getElementById("completion-banner").classList.add("hidden");
+    document.getElementById("status").textContent = "Não iniciada";
+    document.getElementById("status").className = "text-xl sm:text-2xl font-extrabold text-[#f1f5f9] mt-2";
+    document.getElementById("status-sub").textContent = "Aguardando acionamento";
+    document.getElementById("ground").textContent = "00:00:00";
+    document.getElementById("ground-sub").textContent = "Início: --:--";
+    document.getElementById("next").textContent = "--";
+
+    const groundPill = document.getElementById("ground-status-pill");
+    groundPill.className = "inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#111c30] text-[#94a3b8] border border-[#1e2d45]";
+    groundPill.innerHTML = `<i class="fa-solid fa-stopwatch text-[#38bdf8]"></i> Aguardando`;
+
+    const opBadge = document.getElementById("operation-badge");
+    opBadge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-[#070d17] text-[#94a3b8] border border-[#1e2d45] w-fit";
+    opBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500"></span> AGUARDANDO INÍCIO`;
+
+    document.getElementById("log-count").textContent = "0 registros";
+    document.querySelector("#log tbody").innerHTML = `
+      <tr id="empty-log-row">
+        <td colspan="5" class="py-6 text-center text-[#94a3b8] italic">Nenhum evento registrado até o momento.</td>
+      </tr>
+    `;
+
+    logEvent("Sistema", "Nova Operação", "Painel limpo pelo operador");
+    render();
+    showToast("Painel reiniciado para nova operação.");
+  }
+
+  function exportCSV() {
+    const category = document.getElementById("ac-category").value;
+    const ac = getSelectedAircraft();
+    const tail = getSelectedTail();
+    const mission = document.getElementById("mission").value;
+    const place = document.getElementById("place").value;
+    const eta = document.getElementById("eta").value || "--:--";
+    const pax = document.getElementById("pax").value || "0";
+    const cargo = document.getElementById("cargo").value || "0";
+    const resp = document.getElementById("resp").value || "Não informado";
+    const groundTime = document.getElementById("ground").textContent;
+    const exportedBy = currentUser ? `${currentUser.rank} ${currentUser.name} (SARAM ${currentUser.saram} - ${currentUser.sector})` : "Não autenticado";
+
+    let csv = "\uFEFF";
+    csv += "RELATORIO DE TURNAROUND - SCGT BAGL\n";
+    csv += `Categoria;${category};Aeronave;${ac};Matricula;${tail}\n`;
+    csv += `Missao;${mission};Local;${place};ETA;${eta}\n`;
+    csv += `PAX;${pax};Carga (kg);${cargo};Tempo de Solo;${groundTime}\n`;
+    csv += `Coordenador;${resp};Exportado por;${exportedBy}\n\n`;
+
+    csv += "Setor;Item;Status;Hora Inicio;Hora Conclusao;Operador Responsavel\n";
+    for (const sector in state) {
+      for (const item in state[sector]) {
+        const info = state[sector][item];
+        csv += `"${sector}";"${item}";"${info.status.toUpperCase()}";"${info.startedTime || "-"}";"${info.finishedTime || "-"}";"${info.operator || "-"}"\n`;
+      }
+    }
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const cleanTail = tail.replace(/[^A-Z0-9-]/gi, "_");
+    a.download = `SCGT_BAGL_${ac.replace(/[^A-Z0-9-]/gi, "_")}_${cleanTail}.csv`;
+    a.click();
+    showToast("Relatório CSV exportado com sucesso!");
+  }
+
+  // =========================================================================
+  // 6. GERAÇÃO DE RELATÓRIO PDF INSTITUCIONAL (jsPDF + AutoTable + Fallback)
+  // =========================================================================
+  function collectReportData() {
+    const category = document.getElementById("ac-category").value;
+    const ac = getSelectedAircraft();
+    const tail = getSelectedTail();
+    const mission = document.getElementById("mission").value;
+    const place = document.getElementById("place").value;
+    const eta = document.getElementById("eta").value || "--:--";
+    const pax = document.getElementById("pax").value || "0";
+    const cargo = document.getElementById("cargo").value || "0";
+    const resp = document.getElementById("resp").value.trim() || "Não informado";
+    const statusText = document.getElementById("status").textContent;
+    const percentText = document.getElementById("percent").textContent;
+    const fractionText = document.getElementById("fraction").textContent;
+    const groundTime = document.getElementById("ground").textContent;
+
+    const nowObj = new Date();
+    const dateStr = nowObj.toLocaleDateString("pt-BR");
+    const dateFile = nowObj.toISOString().slice(0, 10);
+    const startTimeStr = startedAt
+      ? startedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      : "--:--:--";
+    const endTimeStr = completedAt
+      ? completedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      : "Em andamento";
+
+    const operatorClosed = currentUser
+      ? `${currentUser.rank} ${currentUser.name} | SARAM ${currentUser.saram} | Setor: ${currentUser.sector}`
+      : "Operador não autenticado";
+
+    const checklistRows = [];
+    for (const sector in checklist) {
+      checklist[sector].items.forEach(item => {
+        const info = state[sector] && state[sector][item]
+          ? state[sector][item]
+          : { status: "pendente", startedTime: null, finishedTime: null, operator: null };
+        let statusLabel = "PENDENTE";
+        if (info.status === "concluido") statusLabel = "CONCLUÍDO";
+        else if (info.status === "andamento") statusLabel = "EM ANDAMENTO";
+        else if (info.status === "na") statusLabel = "N/A";
+
+        checklistRows.push([
+          sector,
+          item,
+          statusLabel,
+          info.startedTime || "-",
+          info.finishedTime || "-",
+          info.operator || "-"
+        ]);
+      });
+    }
+
+    const chronologicalLogs = [...logEntries].reverse().map(ev => [
+      ev.time,
+      ev.operatorFull,
+      ev.sector,
+      ev.item,
+      ev.action
+    ]);
+
+    return {
+      category,
+      ac,
+      tail,
+      mission,
+      place,
+      eta,
+      pax,
+      cargo,
+      resp,
+      statusText,
+      percentText,
+      fractionText,
+      groundTime,
+      dateStr,
+      dateFile,
+      startTimeStr,
+      endTimeStr,
+      operatorClosed,
+      checklistRows,
+      chronologicalLogs
+    };
+  }
+
+  function generateTurnaroundPDF(isAutomatic = false) {
+    const data = collectReportData();
+    const cleanTail = data.tail.replace(/[^A-Z0-9-]/gi, "_");
+    const fileName = `Relatorio_Turnaround_BAGL_${cleanTail}_${data.dateFile}.pdf`;
+
+    try {
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        throw new Error("Biblioteca jsPDF indisponível");
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // Cabeçalho Institucional
+      doc.setFillColor(6, 43, 95);
+      doc.rect(0, 0, pageWidth, 28, "F");
+      doc.setFillColor(11, 63, 134);
+      doc.rect(0, 26, pageWidth, 2, "F");
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("MINISTÉRIO DA DEFESA • COMANDO DA AERONÁUTICA", 14, 9.5);
+      doc.setFontSize(14);
+      doc.text("BASE AÉREA DO GALEÃO (BAGL) — RELATÓRIO DE TURNAROUND", 14, 16.5);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(191, 219, 254);
+      doc.text(`SCGT BAGL • Emissão: ${data.dateStr} às ${getTimeNow()} • Documento Operacional Auditável`, 14, 22.5);
+
+      let cursorY = 34;
+
+      // Seção 1: Dados da Aeronave e Operação
+      doc.setTextColor(6, 43, 95);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.text("1. DADOS DA AERONAVE E DA OPERAÇÃO", 14, cursorY);
+      cursorY += 2.5;
+
+      doc.autoTable({
+        startY: cursorY,
+        theme: "grid",
+        styles: { fontSize: 8.5, cellPadding: 2.3, textColor: [30, 41, 59], lineColor: [203, 213, 225] },
+        body: [
+          ["Categoria / Aviação:", data.category, "Modelo / Matrícula:", `${data.ac} — ${data.tail}`],
+          ["Missão:", data.mission, "Local / Pátio:", data.place],
+          ["Previsão Pouso (ETA):", data.eta, "PAX / Carga Estimada:", `${data.pax} PAX  |  ${data.cargo} kg`],
+          ["Coordenador / Oficial:", data.resp, "Operador de Encerramento:", data.operatorClosed]
+        ],
+        columnStyles: {
+          0: { fontStyle: "bold", fillColor: [248, 250, 252], cellWidth: 38 },
+          1: { cellWidth: 53 },
+          2: { fontStyle: "bold", fillColor: [248, 250, 252], cellWidth: 40 },
+          3: { cellWidth: 51 }
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      cursorY = doc.lastAutoTable.finalY + 7;
+
+      // Seção 2: Métricas de Desempenho
+      doc.setTextColor(6, 43, 95);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.text("2. MÉTRICAS DE DESEMPENHO DO TURNAROUND", 14, cursorY);
+      cursorY += 2.5;
+
+      doc.autoTable({
+        startY: cursorY,
+        theme: "grid",
+        head: [["Status Geral", "Início", "Término", "Tempo Total de Solo", "Percentual Concluído"]],
+        body: [[
+          data.statusText.toUpperCase(),
+          data.startTimeStr,
+          data.endTimeStr,
+          data.groundTime,
+          `${data.percentText} (${data.fractionText})`
+        ]],
+        headStyles: { fillColor: [11, 63, 134], textColor: [255, 255, 255], fontStyle: "bold", halign: "center", fontSize: 8.5 },
+        bodyStyles: { fontStyle: "bold", halign: "center", fontSize: 9.5, textColor: [15, 23, 42], fillColor: [240, 253, 244] },
+        margin: { left: 14, right: 14 }
+      });
+
+      cursorY = doc.lastAutoTable.finalY + 7;
+
+      // Seção 3: Tabela Completa de Setores e Etapas
+      doc.setTextColor(6, 43, 95);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.text("3. CHECKLIST COMPLETO POR SETOR E ETAPA", 14, cursorY);
+      cursorY += 2.5;
+
+      doc.autoTable({
+        startY: cursorY,
+        theme: "striped",
+        head: [["Setor", "Etapa / Item", "Status", "Início", "Conclusão", "Operador Responsável"]],
+        body: data.checklistRows,
+        styles: { fontSize: 7.8, cellPadding: 2, textColor: [30, 41, 59], overflow: "linebreak" },
+        headStyles: { fillColor: [6, 43, 95], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+        columnStyles: {
+          0: { fontStyle: "bold", cellWidth: 32 },
+          1: { cellWidth: 62 },
+          2: { halign: "center", fontStyle: "bold", cellWidth: 23 },
+          3: { halign: "center", cellWidth: 15 },
+          4: { halign: "center", cellWidth: 18 },
+          5: { cellWidth: 32 }
+        },
+        didParseCell: function (hookData) {
+          if (hookData.section === "body" && hookData.column.index === 2) {
+            const val = hookData.cell.raw;
+            if (val === "CONCLUÍDO") {
+              hookData.cell.styles.textColor = [21, 115, 71];
+            } else if (val === "N/A") {
+              hookData.cell.styles.textColor = [99, 102, 241];
+            } else if (val === "EM ANDAMENTO") {
+              hookData.cell.styles.textColor = [180, 83, 9];
+            } else {
+              hookData.cell.styles.textColor = [185, 28, 28];
+            }
+          }
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      cursorY = doc.lastAutoTable.finalY + 7;
+
+      // Seção 4: Histórico Cronológico de Auditoria
+      if (cursorY > pageHeight - 45) {
+        doc.addPage();
+        cursorY = 18;
+      }
+
+      doc.setTextColor(6, 43, 95);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.text("4. HISTÓRICO CRONOLÓGICO DE AUDITORIA", 14, cursorY);
+      cursorY += 2.5;
+
+      const auditBody = data.chronologicalLogs.length > 0
+        ? data.chronologicalLogs
+        : [["--:--:--", "-", "Sistema", "-", "Nenhum evento registrado"]];
+
+      doc.autoTable({
+        startY: cursorY,
+        theme: "grid",
+        head: [["Horário", "Operador", "Setor", "Item", "Ação Realizada"]],
+        body: auditBody,
+        styles: { fontSize: 7.5, cellPadding: 1.8, textColor: [30, 41, 59], overflow: "linebreak" },
+        headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7.8 },
+        columnStyles: {
+          0: { halign: "center", cellWidth: 18 },
+          1: { cellWidth: 44 },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 50 },
+          4: { cellWidth: 40 }
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      cursorY = doc.lastAutoTable.finalY + 14;
+      if (cursorY > pageHeight - 25) {
+        doc.addPage();
+        cursorY = 26;
+      }
+
+      // Campos de Assinatura
+      doc.setDrawColor(100, 116, 139);
+      doc.line(30, cursorY, 98, cursorY);
+      doc.line(112, cursorY, 180, cursorY);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(30, 41, 59);
+      doc.text("Coordenador de Turnaround", 64, cursorY + 4, { align: "center" });
+      doc.text("Oficial de Operações — BAGL", 146, cursorY + 4, { align: "center" });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(data.resp, 64, cursorY + 8, { align: "center" });
+      doc.text(data.operatorClosed, 146, cursorY + 8, { align: "center" });
+
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`SCGT BAGL — Base Aérea do Galeão • Página ${i} de ${totalPages}`, pageWidth / 2, pageHeight - 7, { align: "center" });
+      }
+
+      doc.save(fileName);
+      logEvent("Sistema", "Relatório PDF", isAutomatic ? `Gerado automaticamente (${fileName})` : `Exportado manualmente (${fileName})`);
+      showToast(isAutomatic ? "100% Concluído! Relatório PDF gerado automaticamente." : "Relatório PDF gerado com sucesso!");
+    } catch (err) {
+      const printArea = document.getElementById("print-fallback-area");
+      printArea.innerHTML = `
+        <div style="font-family: Arial, sans-serif; color: #0b1f3a;">
+          <div style="background:#062b5f; color:white; padding:14px; border-radius:6px; margin-bottom:14px;">
+            <div style="font-size:11px; font-weight:bold;">MINISTÉRIO DA DEFESA • COMANDO DA AERONÁUTICA</div>
+            <div style="font-size:16px; font-weight:bold;">BASE AÉREA DO GALEÃO (BAGL) — RELATÓRIO DE TURNAROUND</div>
+            <div style="font-size:11px;">Emissão: ${data.dateStr} às ${getTimeNow()}</div>
+          </div>
+          <p><strong>Aeronave:</strong> ${data.ac} (${data.tail}) | <strong>Categoria:</strong> ${data.category} | <strong>Missão:</strong> ${data.mission} | <strong>Local:</strong> ${data.place}</p>
+          <p><strong>ETA:</strong> ${data.eta} | <strong>PAX:</strong> ${data.pax} | <strong>Carga:</strong> ${data.cargo} kg | <strong>Tempo Total de Solo:</strong> ${data.groundTime} (${data.statusText})</p>
+          <p><strong>Coordenador:</strong> ${data.resp} | <strong>Operador:</strong> ${data.operatorClosed}</p>
+          <table border="1" cellspacing="0" cellpadding="5" style="width:100%; border-collapse:collapse; font-size:11px; margin-top:10px;">
+            <thead style="background:#062b5f; color:white;">
+              <tr><th>Setor</th><th>Etapa</th><th>Status</th><th>Início</th><th>Conclusão</th><th>Operador</th></tr>
+            </thead>
+            <tbody>
+              ${data.checklistRows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td></tr>`).join("")}
+            </tbody>
+          </table>
+          <div style="display:flex; justify-content:space-around; margin-top:36px; text-align:center; font-size:11px;">
+            <div>_______________________________<br><strong>Coordenador de Turnaround</strong><br>${data.resp}</div>
+            <div>_______________________________<br><strong>Oficial de Operações — BAGL</strong><br>${data.operatorClosed}</div>
+          </div>
+        </div>
+      `;
+      printArea.classList.remove("hidden");
+      window.print();
+      printArea.classList.add("hidden");
+      showToast("Abrindo impressão/salvamento em PDF (modo offline)...");
+    }
+  }
+
+  let toastTimeout = null;
+  function showToast(msg) {
+    const toast = document.getElementById("toast");
+    document.getElementById("toast-msg").textContent = msg;
+    toast.classList.remove("hidden");
+    toast.classList.add("flex");
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+      toast.classList.add("hidden");
+      toast.classList.remove("flex");
+    }, 3000);
+  }
+
+  // =========================================================================
+  // 7. INICIALIZAÇÃO E LISTENERS DE EVENTOS (100% EVENT DELEGATION)
+  // =========================================================================
+  window.addEventListener("DOMContentLoaded", () => {
+    initCategorySelect();
+    initEmptyState();
+
+    // Abas e formulários de login
+    document.getElementById("tab-login-btn").addEventListener("click", () => switchAuthTab("login"));
+    document.getElementById("tab-register-btn").addEventListener("click", () => switchAuthTab("register"));
+    document.getElementById("login-form").addEventListener("submit", handleLoginSubmit);
+    document.getElementById("register-form").addEventListener("submit", handleRegisterSubmit);
+    document.getElementById("toggle-login-pin-btn").addEventListener("click", () => togglePinVisibility("login-pin", "toggle-login-pin-icon"));
+    document.getElementById("toggle-reg-pin-btn").addEventListener("click", () => togglePinVisibility("reg-pin", "toggle-reg-pin-icon"));
+
+    // Event delegation para os 4 crachás de Acesso Rápido
+    document.getElementById("quick-login-grid").addEventListener("click", (e) => {
+      const btn = e.target.closest(".quick-login-btn");
+      if (!btn) return;
+      hideAuthError();
+      completeLogin({
+        rank: btn.dataset.quickRank,
+        name: btn.dataset.quickName,
+        saram: btn.dataset.quickSaram,
+        sector: btn.dataset.quickSector
+      });
+    });
+
+    // Cabeçalho: Trocar Operador e Sair
+    document.getElementById("btn-switch-operator").addEventListener("click", openSwitchOperator);
+    document.getElementById("btn-logout-operator").addEventListener("click", logoutOperator);
+
+    // Seletores em cascata da frota FAB e busca rápida
+    document.getElementById("ac-category").addEventListener("change", onCategoryChange);
+    document.getElementById("aircraft").addEventListener("change", onModelChange);
+    document.getElementById("tail-select").addEventListener("change", handleTailSelect);
+
+    const quickInput = document.getElementById("quick-tail-search");
+    quickInput.addEventListener("input", () => handleQuickTailSearch(quickInput.value));
+    quickInput.addEventListener("focus", () => handleQuickTailSearch(quickInput.value));
+    document.getElementById("clear-quick-search").addEventListener("click", clearQuickSearch);
+
+    document.getElementById("quick-search-results").addEventListener("click", (e) => {
+      const itemBtn = e.target.closest(".quick-match-item");
+      if (!itemBtn) return;
+      const idx = Number(itemBtn.dataset.matchIdx);
+      const match = quickMatchesCache[idx];
+      if (match) {
+        selectFromQuickSearch(match.category, match.model, match.tail);
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      const resultsBox = document.getElementById("quick-search-results");
+      if (quickInput && resultsBox && !quickInput.contains(e.target) && !resultsBox.contains(e.target)) {
+        resultsBox.classList.add("hidden");
+      }
+    });
+
+    // Botões de ação da operação e banner
+    document.getElementById("btn-start-op").addEventListener("click", startOperation);
+    document.getElementById("btn-generate-pdf").addEventListener("click", () => generateTurnaroundPDF(false));
+    document.getElementById("btn-export-csv").addEventListener("click", exportCSV);
+    document.getElementById("btn-reset-all").addEventListener("click", resetAll);
+    document.getElementById("btn-banner-pdf").addEventListener("click", () => generateTurnaroundPDF(false));
+    document.getElementById("btn-close-banner").addEventListener("click", () => {
+      document.getElementById("completion-banner").classList.add("hidden");
+    });
+
+    // Filtros e busca do checklist
+    document.querySelectorAll(".filter-btn").forEach(btn => {
+      btn.addEventListener("click", () => setFilter(btn.dataset.filter));
+    });
+    document.getElementById("search-checklist").addEventListener("input", render);
+
+    // Event delegation 100% segura para todos os botões do checklist
+    document.getElementById("sectors").addEventListener("click", (e) => {
+      const actionBtn = e.target.closest(".checklist-action-btn");
+      if (!actionBtn) return;
+      const sectorName = SECTOR_NAMES[Number(actionBtn.dataset.sectorIdx)];
+      const itemName = checklist[sectorName] ? checklist[sectorName].items[Number(actionBtn.dataset.itemIdx)] : null;
+      const newStatus = actionBtn.dataset.action;
+      if (sectorName && itemName && newStatus) {
+        setItemStatus(sectorName, itemName, newStatus);
+      }
+    });
+
+    restoreSession();
+    render();
+    updateTimers();
+    setInterval(updateTimers, 1000);
+  });
+</script>
+</body>
+</html>
