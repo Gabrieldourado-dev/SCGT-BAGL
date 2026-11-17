@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BAGL — Ficha de Voo, Acompanhamento & Oficial de Operações (SBGL)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ===================================================================
+       1. TELA DE LOGIN POR ENTIDADE / PERFIL OPERACIONAL
+       =================================================================== -->
+  <div id="login-overlay" class="login-overlay">
+    <div class="login-box">
+      <div class="login-header">
+        <span class="badge-sbgl">SBGL • BAGL</span>
+        <h2>Controle de Acesso Operacional</h2>
+        <p>Selecione sua função ou entidade para acessar o terminal</p>
+      </div>
+
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-operador">Posto/Graduação e Nome de Guerra *</label>
+          <input type="text" id="login-operador" placeholder="Ex: Cap Av SILVA ou 2S COSTA" required>
+        </div>
+
+        <div class="form-group">
+          <label for="login-entidade">Perfil / Entidade de Atuação *</label>
+          <select id="login-entidade" required>
+            <option value="OFICIAL_OPS">🎖️ Oficial de Operações (Supervisão Geral & Cobrança)</option>
+            <option value="DESPACHANTE">🎙️ Despachante / Rádio (Criar Ficha de Voo)</option>
+            <option value="COMBUSTIVEL">⛽ Combustível (Abastecimento QAV-1)</option>
+            <option value="QTU_QTA">💧 QTU / QTA (Águas Servidas e Potável)</option>
+            <option value="CTLA">📦 CTLA / Carga (Apoio de Carga e Descarga)</option>
+            <option value="PATIO_GPU">⚡ Pátio / Fonte de Força (GPU e Calços)</option>
+            <option value="PAX">🚌 Passageiros / Tráfego (Escada e Embarque)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="login-pin">PIN de Acesso (Padrão do turno: 2026)</label>
+          <input type="password" id="login-pin" placeholder="Digite 2026" required>
+        </div>
+
+        <p id="login-erro" class="erro-msg hidden">PIN inválido. Utilize 2026.</p>
+
+        <button type="submit" class="btn-primary">Entrar no Terminal</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================
+       2. CABEÇALHO DO SISTEMA
+       =================================================================== -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-badge">SBGL</div>
+      <div>
+        <h1>BAGL • GESTÃO DE SOLO E TURNAROUND</h1>
+        <p id="header-subtitulo">Terminal Operacional</p>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div class="clock-box">
+        <span>LOCAL / ZULU</span>
+        <strong><span id="clock-local">--:--</span> | <span id="clock-zulu" class="text-cyan">--:--Z</span></strong>
+      </div>
+
+      <div class="user-pill">
+        <div>
+          <strong id="user-nome-display">--</strong>
+          <span id="user-entidade-display">--</span>
+        </div>
+        <button type="button" id="btn-sair" class="btn-logout">Trocar Perfil</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================
+       3. ÁREA PRINCIPAL
+       =================================================================== -->
+  <main class="container">
+
+    <!-- VISÃO A: EXCLUSIVA DO OFICIAL DE OPERAÇÕES (RADAR DE PENDÊNCIAS CLICÁVEL) -->
+    <section id="painel-oficial-ops" class="panel radar-panel hidden">
+      <div class="panel-header">
+        <div>
+          <h2>🎖️ Sala de Situação — Oficial de Operações (C2)</h2>
+          <p class="subtitle">Clique em qualquer entidade abaixo para filtrar e inspecionar imediatamente o que está pendente ou em atraso</p>
+        </div>
+        <button type="button" id="btn-limpar-filtro-entidade" class="btn-outline hidden">Mostrar Todas as Entidades</button>
+      </div>
+
+      <!-- Grade de Cartões Clicáveis por Entidade -->
+      <div id="radar-entidades-grid" class="radar-grid">
+        <!-- Preenchido dinamicamente pelo app.js -->
+      </div>
+    </section>
+
+    <!-- VISÃO B: EXCLUSIVA DO DESPACHANTE (FICHA DE VOO) -->
+    <section id="painel-despachante" class="panel hidden">
+      <div class="panel-header">
+        <div>
+          <h2>🎙️ Ficha de Voo (Recebimento Fonia / Rádio)</h2>
+          <p class="subtitle">Insira os dados informados pelo piloto para disparar o acompanhamento às entidades</p>
+        </div>
+        <span class="tag">DESPACHO OPERACIONAL</span>
+      </div>
+
+      <form id="ficha-voo-form">
+        <div class="grid-3">
+          <div class="form-group">
+            <label for="ficha-patio">Pátio Designado *</label>
+            <select id="ficha-patio" required>
+              <option value="HOT POINT">Hot Point</option>
+              <option value="PERGOLA">Pérgola</option>
+              <option value="PMIL" selected>Pátio Militar (PMIL)</option>
+              <option value="PATIO CAN">Pátio CAN</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="ficha-posicao">Posição / Box *</label>
+            <input type="text" id="ficha-posicao" placeholder="Ex: Box 03" required>
+          </div>
+
+          <div class="form-group">
+            <label for="ficha-eta">ETA / Hora Chamada *</label>
+            <input type="time" id="ficha-eta" required>
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="form-group">
+            <label for="ficha-categoria">Aviação / Categoria FAB</label>
+            <select id="ficha-categoria"></select>
+          </div>
+
+          <div class="form-group">
+            <label for="ficha-modelo">Aeronave (Modelo) *</label>
+            <select id="ficha-modelo" required></select>
+          </div>
+
+          <div class="form-group">
+            <label for="ficha-matricula">Matrícula FAB *</label>
+            <select id="ficha-matricula" required></select>
+          </div>
+        </div>
+
+        <div class="form-group hidden" id="ficha-manual-group">
+          <label for="ficha-manual">Informar Matrícula Manualmente *</label>
+          <input type="text" id="ficha-manual" placeholder="Ex: FAB 2860">
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group">
+            <label for="ficha-procedencia">Procedência (ICAO)</label>
+            <input type="text" id="ficha-procedencia" placeholder="Ex: SBBR" maxlength="4" style="text-transform: uppercase;">
+          </div>
+          <div class="form-group">
+            <label for="ficha-obs">Observações da Fonia (Rádio)</label>
+            <input type="text" id="ficha-obs" placeholder="Ex: Autoridade a bordo / Carga prioritária / 4.000L QAV">
+          </div>
+        </div>
+
+        <!-- SELEÇÃO DAS ENTIDADES SOLICITADAS PELO PILOTO -->
+        <div class="entidades-select-box">
+          <h3>Acionar Entidades para Acompanhamento de Voo:</h3>
+          <div class="entidades-grid">
+            <label class="check-card">
+              <input type="checkbox" name="entidade_req" value="COMBUSTIVEL">
+              <div>
+                <strong>⛽ Combustível</strong>
+                <span>Abastecimento QAV-1</span>
+              </div>
+            </label>
+
+            <label class="check-card">
+              <input type="checkbox" name="entidade_req" value="QTU_QTA">
+              <div>
+                <strong>💧 QTU / QTA</strong>
+                <span>Águas Servidas e Potável</span>
+              </div>
+            </label>
+
+            <label class="check-card">
+              <input type="checkbox" name="entidade_req" value="CTLA">
+              <div>
+                <strong>📦 CTLA / Carga</strong>
+                <span>Apoio de Carga / Rampa</span>
+              </div>
+            </label>
+
+            <label class="check-card">
+              <input type="checkbox" name="entidade_req" value="PATIO_GPU">
+              <div>
+                <strong>⚡ Pátio / GPU</strong>
+                <span>Fonte de Força / Calços</span>
+              </div>
+            </label>
+
+            <label class="check-card">
+              <input type="checkbox" name="entidade_req" value="PAX">
+              <div>
+                <strong>🚌 Passageiros (PAX)</strong>
+                <span>Escada / Ônibus / Embarque</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary">📡 Transmitir Ficha para Acompanhamento de Voo</button>
+      </form>
+    </section>
+
+    <!-- VISÃO C: ACOMPANHAMENTO DE VOO (ADAPTADO POR PERFIL) -->
+    <section id="secao-acompanhamento" class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 id="acompanhamento-titulo">📋 Acompanhamento de Voo</h2>
+          <p id="acompanhamento-desc" class="subtitle">Chamados ativos para execução</p>
+        </div>
+        <span id="contador-chamados" class="tag">0 ATIVOS</span>
+      </div>
+
+      <!-- Barra de Filtros de Pátio + Filtro de Status (para Oficial de Ops) -->
+      <div class="filter-toolbar">
+        <div class="patio-tabs">
+          <button class="tab-btn active" data-patio="TODOS">Todos os Pátios</button>
+          <button class="tab-btn" data-patio="HOT POINT">Hot Point</button>
+          <button class="tab-btn" data-patio="PERGOLA">Pérgola</button>
+          <button class="tab-btn" data-patio="PMIL">PMIL</button>
+          <button class="tab-btn" data-patio="PATIO CAN">Pátio CAN</button>
+        </div>
+
+        <div id="filtro-status-ops" class="status-filter-group hidden">
+          <label class="toggle-pendentes">
+            <input type="checkbox" id="chk-apenas-pendentes">
+            <span>Mostrar somente serviços não concluídos</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Lista de Fichas em Acompanhamento -->
+      <div id="lista-acompanhamento" class="cards-grid">
+        <!-- Renderizado dinamicamente pelo app.js -->
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
